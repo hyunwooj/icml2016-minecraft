@@ -5,7 +5,8 @@ function gameEnv:__init(_opt)
     self.verbose        = _opt.verbose or 0
     self._actrep        = _opt.actrep or 1
     self._random_starts = _opt.random_starts or 1
-    self:reset(_opt.env, _opt.env_params, _opt.gpu, _opt.port, _opt.img_size)
+    self:reset(_opt.env, _opt.env_params, _opt.gpu, _opt.port, _opt.img_size,
+               _opt.ipaddr)
     return self
 end
 
@@ -25,7 +26,7 @@ function gameEnv:getState()
 end
 
 
-function gameEnv:reset(_env, _params, _gpu, _port, _img_size)
+function gameEnv:reset(_env, _params, _gpu, _port, _img_size, _ipaddr)
     local env
     local params = _params or {useRGB=true}
     -- if no game name given use previous name if available
@@ -34,16 +35,18 @@ function gameEnv:reset(_env, _params, _gpu, _port, _img_size)
     end
     env = _env or env or 'default'
 
+    local ipaddr = _ipaddr or '0.0.0.0'
     local port
+    -- require('fb.debugger').enter()
     if _port and _port > 0 then
-        self.client = socket.connect("0.0.0.0", _port)
+        self.client = socket.connect(ipaddr, _port)
         port = _port
     else
         local connected = false
         print("Searching for available Minecraft instance..")
         while not connected do
             for i=30000,30100 do
-                self.client = socket.connect("0.0.0.0", i)
+                self.client = socket.connect(ipaddr, i)
                 if self.client then
                     port = i
                     connected = true
@@ -55,7 +58,7 @@ function gameEnv:reset(_env, _params, _gpu, _port, _img_size)
         end
     end
     assert(self.client, "Socket connection failed")
-    print("Connected to Port:", port)
+    print(string.format("Connected to %s:%d", ipaddr, port))
     params.client = self.client
     params.img_size = _img_size
     self.game       = mcwrap.game(env, params)

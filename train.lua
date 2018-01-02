@@ -35,6 +35,7 @@ cmd:option('-verbose', 2, 'the level of debug prints')
 cmd:option('-threads', 4, 'number of BLAS threads')
 cmd:option('-gpu', -1, 'gpu id')
 cmd:option('-port', 0, 'port number for minecraft: search over [30000,30100] if 0')
+cmd:option('-ipaddr', '0.0.0.0', 'ip address for mincraft')
 cmd:text()
 local opt = cmd:parse(arg)
 
@@ -87,7 +88,7 @@ if #test_env > 0 then
     end
     agent_param.actions = game_actions
     agent_param.hist_len = opt.test_hist_len
-    agent_param.minibatch_size = 1 
+    agent_param.minibatch_size = 1
     agent_param.target_q = nil
     agent_param.replay_memory = 10000
     test_agent = create_agent(opt, agent_param)
@@ -102,7 +103,7 @@ local td_history = {}
 local reward_history = {}
 local test_reward_history = {}
 local best_history = {}
-local step = 0 
+local step = 0
 for i=1,#test_env do
     test_reward_history[i] = {}
 end
@@ -140,7 +141,7 @@ while step < opt.steps do
                 agent:report()
             end
             epoch_time = sys.clock()
-            print("Evaluating the agent on the training environment: " 
+            print("Evaluating the agent on the training environment: "
                     .. color.green(train_env))
             ev_flag = false
             nepisodes, total_reward = eval_agent(game_env, agent, opt.eval_steps)
@@ -161,11 +162,11 @@ while step < opt.steps do
                 end
                 for test_id=1,#test_env do
                     local ind = #test_reward_history[test_id]+1
-                    print("Evaluating the agent on the test environment: " 
+                    print("Evaluating the agent on the test environment: "
                             .. color.green(test_env_names[test_id]))
                     nepisodes, total_reward = eval_agent(test_env[test_id], test_agent, opt.eval_steps)
                     total_reward = total_reward/math.max(1, nepisodes)
-                    if #test_reward_history[test_id] == 0 or 
+                    if #test_reward_history[test_id] == 0 or
                             total_reward > torch.Tensor(test_reward_history[test_id]):max() then
                         agent.best_test_network[test_id] = test_agent.network:clone():float()
                     end
