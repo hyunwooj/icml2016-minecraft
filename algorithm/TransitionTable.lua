@@ -55,7 +55,7 @@ function trans:__init(args)
     self.a = torch.LongTensor(self.maxSize):fill(0)
     self.r = torch.zeros(self.maxSize)
     self.t = torch.ByteTensor(self.maxSize):fill(0)
-    self.action_encodings = torch.eye(self.numActions)
+    -- self.action_encodings = torch.eye(self.numActions)
 
     -- Tables for storing the last histLen states.  They are used for
     -- constructing the most recent agent state more easily.
@@ -212,46 +212,46 @@ function trans:concatFrames(index, use_recent)
 end
 
 
-function trans:concatActions(index, use_recent)
-    local act_hist = torch.FloatTensor(self.histLen, self.numActions)
-    if use_recent then
-        a, t = self.recent_a, self.recent_t
-    else
-        a, t = self.a, self.t
-    end
+-- function trans:concatActions(index, use_recent)
+--     local act_hist = torch.FloatTensor(self.histLen, self.numActions)
+--     if use_recent then
+--         a, t = self.recent_a, self.recent_t
+--     else
+--         a, t = self.a, self.t
+--     end
 
-    -- Zero out frames from all but the most recent episode.
-    local zero_out = false
-    local episode_start = self.histLen
+--     -- Zero out frames from all but the most recent episode.
+--     local zero_out = false
+--     local episode_start = self.histLen
 
-    for i=self.histLen-1,1,-1 do
-        if not zero_out then
-            for j=index+self.histIndices[i]-1,index+self.histIndices[i+1]-2 do
-                if t[j] == 1 then
-                    zero_out = true
-                    break
-                end
-            end
-        end
+--     for i=self.histLen-1,1,-1 do
+--         if not zero_out then
+--             for j=index+self.histIndices[i]-1,index+self.histIndices[i+1]-2 do
+--                 if t[j] == 1 then
+--                     zero_out = true
+--                     break
+--                 end
+--             end
+--         end
 
-        if zero_out then
-            act_hist[i]:zero()
-        else
-            episode_start = i
-        end
-    end
+--         if zero_out then
+--             act_hist[i]:zero()
+--         else
+--             episode_start = i
+--         end
+--     end
 
-    if self.zeroFrames == 0 then
-        episode_start = 1
-    end
+--     if self.zeroFrames == 0 then
+--         episode_start = 1
+--     end
 
-    -- Copy frames from the current episode.
-    for i=episode_start,self.histLen do
-        act_hist[i]:copy(self.action_encodings[a[index+self.histIndices[i]-1]])
-    end
+--     -- Copy frames from the current episode.
+--     for i=episode_start,self.histLen do
+--         act_hist[i]:copy(self.action_encodings[a[index+self.histIndices[i]-1]])
+--     end
 
-    return act_hist
-end
+--     return act_hist
+-- end
 
 
 function trans:get_recent()
@@ -380,7 +380,7 @@ function trans:read(file)
     self.a = torch.LongTensor(self.maxSize):fill(0)
     self.r = torch.zeros(self.maxSize)
     self.t = torch.ByteTensor(self.maxSize):fill(0)
-    self.action_encodings = torch.eye(self.numActions)
+    -- self.action_encodings = torch.eye(self.numActions)
 
     -- Tables for storing the last histLen states.  They are used for
     -- constructing the most recent agent state more easily.
