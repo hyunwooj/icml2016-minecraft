@@ -15,8 +15,8 @@ function trans:__init(args)
     self.histLen = args.histLen
     self.maxSize = args.maxSize or 1024^2
     self.bufferSize = args.bufferSize or 1024
-    self.histType = args.histType or "linear"
-    self.histSpacing = args.histSpacing or 1
+    -- self.histType = args.histType or "linear"
+    -- self.histSpacing = args.histSpacing or 1
     self.zeroFrames = args.zeroFrames or 1
     self.nonTermProb = args.nonTermProb or 1
     self.nonEventProb = args.nonEventProb or 1
@@ -24,32 +24,33 @@ function trans:__init(args)
     self.numEntries = 0
     self.insertIndex = 0
 
-    self.histIndices = {}
-    local histLen = self.histLen
-    if self.histType == "linear" then
-        -- History is the last histLen frames.
-        self.recentMemSize = self.histSpacing*histLen
-        for i=1,histLen do
-            self.histIndices[i] = i*self.histSpacing
-        end
-    elseif self.histType == "exp2" then
-        -- The ith history frame is from 2^(i-1) frames ago.
-        self.recentMemSize = 2^(histLen-1)
-        self.histIndices[1] = 1
-        for i=1,histLen-1 do
-            self.histIndices[i+1] = self.histIndices[i] + 2^(7-i)
-        end
-    elseif self.histType == "exp1.25" then
-        -- The ith history frame is from 1.25^(i-1) frames ago.
-        self.histIndices[histLen] = 1
-        for i=histLen-1,1,-1 do
-            self.histIndices[i] = math.ceil(1.25*self.histIndices[i+1])+1
-        end
-        self.recentMemSize = self.histIndices[1]
-        for i=1,histLen do
-            self.histIndices[i] = self.recentMemSize - self.histIndices[i] + 1
-        end
-    end
+    -- self.histIndices = {}
+    -- local histLen = self.histLen
+    -- if self.histType == "linear" then
+    --     -- History is the last histLen frames.
+    --     self.recentMemSize = self.histSpacing*histLen
+    --     for i=1,histLen do
+    --         self.histIndices[i] = i*self.histSpacing
+    --     end
+    -- elseif self.histType == "exp2" then
+    --     -- The ith history frame is from 2^(i-1) frames ago.
+    --     self.recentMemSize = 2^(histLen-1)
+    --     self.histIndices[1] = 1
+    --     for i=1,histLen-1 do
+    --         self.histIndices[i+1] = self.histIndices[i] + 2^(7-i)
+    --     end
+    -- elseif self.histType == "exp1.25" then
+    --     -- The ith history frame is from 1.25^(i-1) frames ago.
+    --     self.histIndices[histLen] = 1
+    --     for i=histLen-1,1,-1 do
+    --         self.histIndices[i] = math.ceil(1.25*self.histIndices[i+1])+1
+    --     end
+    --     self.recentMemSize = self.histIndices[1]
+    --     for i=1,histLen do
+    --         self.histIndices[i] = self.recentMemSize - self.histIndices[i] + 1
+    --     end
+    -- end
+    self.recentMemSize = self.histLen
 
     self.s = torch.ByteTensor(self.maxSize, self.stateDim):fill(0)
     self.a = torch.LongTensor(self.maxSize):fill(0)
@@ -63,7 +64,8 @@ function trans:__init(args)
     self.recent_a = {}
     self.recent_t = {}
 
-    local s_size = self.stateDim*histLen
+    -- local s_size = self.stateDim*histLen
+    local s_size = self.stateDim * self.histLen
     self.buf_a      = torch.LongTensor(self.bufferSize):fill(0)
     self.buf_r      = torch.zeros(self.bufferSize)
     self.buf_term   = torch.ByteTensor(self.bufferSize):fill(0)
@@ -184,7 +186,8 @@ function trans:concatFrames(index, use_recent)
 
     for i=self.histLen-1,1,-1 do
         if not zero_out then
-            for j=index+self.histIndices[i]-1,index+self.histIndices[i+1]-2 do
+            -- for j=index+self.histIndices[i]-1,index+self.histIndices[i+1]-2 do
+            for j=index + i - 1, index + (i+1) - 2 do
                 if t[j] == 1 then
                     zero_out = true
                     break
@@ -205,7 +208,8 @@ function trans:concatFrames(index, use_recent)
 
     -- Copy frames from the current episode.
     for i=episode_start,self.histLen do
-        fullstate[i]:copy(s[index+self.histIndices[i]-1])
+        -- fullstate[i]:copy(s[index+self.histIndices[i]-1])
+        fullstate[i]:copy(s[index + i - 1])
     end
 
     return fullstate
@@ -353,8 +357,9 @@ function trans:write(file)
                       self.bufferSize,
                       self.numEntries,
                       self.insertIndex,
-                      self.recentMemSize,
-                      self.histIndices})
+                      -- self.recentMemSize,
+                      -- self.histIndices})
+                      self.recentMemSize})
 end
 
 
@@ -365,14 +370,15 @@ Recreates an empty table.
 @param file (FILE object ) @see torch.DiskFile
 --]]
 function trans:read(file)
-    local stateDim, numActions, histLen, maxSize, bufferSize, numEntries, insertIndex, recentMemSize, histIndices = unpack(file:readObject())
+    -- local stateDim, numActions, histLen, maxSize, bufferSize, numEntries, insertIndex, recentMemSize, histIndices = unpack(file:readObject())
+    local stateDim, numActions, histLen, maxSize, bufferSize, numEntries, insertIndex, recentMemSize = unpack(file:readObject())
     self.stateDim = stateDim
     self.numActions = numActions
     self.histLen = histLen
     self.maxSize = maxSize
     self.bufferSize = bufferSize
     self.recentMemSize = recentMemSize
-    self.histIndices = histIndices
+    -- self.histIndices = histIndices
     self.numEntries = 0
     self.insertIndex = 0
 
