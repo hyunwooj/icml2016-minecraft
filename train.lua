@@ -23,7 +23,8 @@ cmd:option('-env_params', '', 'string of environment parameters')
 cmd:option('-actrep', 1, 'how many times to repeat action')
 cmd:option('-save_name', '', 'filename used for saving network and training history')
 cmd:option('-network', '', 'name of architecture or the filename of pretrained model')
-cmd:option('-agent', 'NeuralQLearner', 'name of agent file to use')
+-- cmd:option('-agent', 'NeuralQLearner', 'name of agent file to use')
+cmd:option('-agent', 'Agent', 'name of agent file to use')
 cmd:option('-agent_params', '', 'string of agent parameters')
 cmd:option('-seed', 1, 'random seed')
 cmd:option('-saveNetworkParams', true, 'saves the parameter in a separate file')
@@ -92,7 +93,8 @@ if #test_env > 0 then
     agent_param.target_q = nil
     agent_param.replay_memory = 10000
     test_agent = create_agent(opt, agent_param)
-    share_weights(agent.network.net, test_agent.network.net)
+    -- share_weights(agent.network.net, test_agent.network.net)
+    share_weights(agent.qu.net, test_agent.qu.net)
 end
 
 local learn_start = agent.learn_start

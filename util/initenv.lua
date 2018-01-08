@@ -13,6 +13,7 @@ require 'cudnn'
 require 'socket'
 require 'util.nnutils'
 require 'algorithm.NeuralQLearner'
+require 'algorithm.Agent'
 require 'algorithm.TransitionTable'
 
 function torchSetup(_opt)

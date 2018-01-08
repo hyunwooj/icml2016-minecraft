@@ -37,7 +37,6 @@ function gameEnv:reset(_env, _params, _gpu, _port, _img_size, _ipaddr)
 
     local ipaddr = _ipaddr or '0.0.0.0'
     local port
-    -- require('fb.debugger').enter()
     if _port and _port > 0 then
         self.client = socket.connect(ipaddr, _port)
         port = _port
