@@ -441,7 +441,7 @@ function agent:use_gpu()
     return self.gpu and self.gpu >= 0
 end
 
-function nql:report()
+function agent:report()
     print('Actor')
     print(get_weight_norms(self.actor.net))
     print(get_grad_norms(self.actor.net))
