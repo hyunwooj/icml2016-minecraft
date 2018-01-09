@@ -3,6 +3,7 @@ if not dqn then
 end
 require 'model.init'
 require 'algorithm.Memory'
+require 'algorithm.ReplayBuffer'
 
 
 local agent = torch.class('dqn.Agent')
@@ -53,20 +54,27 @@ function agent:__init(args)
     self.target_q_eps     = args.target_q_eps or 1e-3
     self.clip_grad        = args.clip_grad or 20
     self.transition_params = args.transition_params or {}
-    self.qu_name       = args.network
-    self.mu_name       = args.network
-    self.name = self.qu_name
+    self.critic_name       = args.network
+    self.actor_name       = args.network
+    self.name = self.critic_name
 
-    self.qu = self:create_qu()
-    self.mu = self:create_mu()
+    self.learn_start = 100
+    self.critic = self:create_critic()
+    self.actor = self:create_actor()
+    self.log_softmax = nn.LogSoftMax()
+    self.softmax = nn.SoftMax()
 
     if self:use_gpu() then
-        self.qu:cuda()
-        self.mu:cuda()
+        self.critic:cuda()
+        self.actor:cuda()
+        self.log_softmax:cuda()
+        self.softmax:cuda()
         self.tensor_type = torch.CudaTensor
     else
-        self.qu:float()
-        self.mu:float()
+        self.critic:float()
+        self.actor:float()
+        self.log_softmax:float()
+        self.softmax:float()
         self.tensor_type = torch.FloatTensor
     end
 
@@ -83,26 +91,41 @@ function agent:__init(args)
     self.q_max = 1
     self.r_max = 1
 
-    self.qu_w, self.qu_dw = self.qu:getParameters()
-    self.qu_dw:zero()
+    -- critic
+    self.critic_w, self.critic_dw = self.critic:getParameters()
+    self.critic_dw:zero()
 
-    self.deltas = self.qu_dw:clone():fill(0)
-    self.tmp= self.qu_dw:clone():fill(0)
-    self.g  = self.qu_dw:clone():fill(0)
-    self.g2 = self.qu_dw:clone():fill(0)
+    self.critic_deltas = self.critic_dw:clone():fill(0)
+    self.critic_tmp    = self.critic_dw:clone():fill(0)
+    self.critic_g      = self.critic_dw:clone():fill(0)
+    self.critic_g2     = self.critic_dw:clone():fill(0)
 
     if self.target_q then
-        self.target_qu = self.qu:clone()
-        self.target_qu_w = self.target_qu:getParameters()
+        self.target_critic = self.critic:clone()
+        self.target_critic_w = self.target_critic:getParameters()
+    end
+
+    -- actor
+    self.actor_w, self.actor_dw = self.actor:getParameters()
+    self.actor_dw:zero()
+
+    self.actor_deltas = self.actor_dw:clone():fill(0)
+    self.actor_tmp    = self.actor_dw:clone():fill(0)
+    self.actor_g      = self.actor_dw:clone():fill(0)
+    self.actor_g2     = self.actor_dw:clone():fill(0)
+
+    if self.target_q then
+        self.target_actor = self.actor:clone()
+        self.target_actor_w = self.target_actor:getParameters()
     end
 end
 
 function agent:perceive(reward, frame, terminal, testing, testing_ep)
     -- Preprocess state (will be set to nil if terminal)
-    local frame = self:preprocess(frame):float()
+    local frame = self:preprocess(frame)
     local state = self.memory:get(frame)
 
-    if self.last_step then
+    if self.last_step and not testing then
         local s = self.last_step.s
         local a = self.last_step.a
         local r = reward
@@ -111,28 +134,161 @@ function agent:perceive(reward, frame, terminal, testing, testing_ep)
         self.buffer:add(s, a, r, s2, t)
     end
 
-    input = nn.utils.addSingletonDimension(state, 1)
+    input = nn.utils.addSingletonDimension(state, 1):float():div(255)
     if self:use_gpu() then
         input = input:cuda()
     end
-    self.mu:evaluate()
-    local action_probs = self.mu:forward(input, mem)
-    -- TODO: Add random noise to explore
+    self.actor:evaluate()
+    local action_logits = self.actor:forward(input, mem)
+    local action_probs = self.softmax:forward(action_logits)
+    -- TODO: Add random noise for exploration
     local _, action = torch.max(action_probs:squeeze(), 1)
     action = action:totable()[1]
+    mem_idx = (action-1) % (self.hist_len-1) + 1
+    beh_idx = math.floor((action-1) / (self.hist_len-1)) + 1
 
+    if self.numSteps > self.learn_start and not testing and
+        self.numSteps % self.update_freq == 0 then
+        for i = 1, self.n_replay do
+            self:learn()
+        end
+    end
+
+    if not testing then
+        self.numSteps = self.numSteps + 1
+    end
     self.last_step = {s=state, a=action}
 
-    mem = self.memory:replace(frame, action)
-    return action
+    self.memory:replace(frame, mem_idx)
+    if beh_idx < 1 or beh_idx > 6 then
+        require('fb.debugger').enter()
+    end
+    return beh_idx
 end
 
-function agent:create_qu()
-    print('Creating Agent Network from ' .. self.qu_name)
+function agent:learn()
+    self:update_lr()
+
+    local s, a, r, s2, t = self.buffer:sample(self.minibatch_size)
+    if self:use_gpu() then
+        s = s:cuda()
+        s2 = s2:cuda()
+    end
+
+    -- y = (1-t)
+    local y = t:clone():float():mul(-1):add(1)
+
+    self.target_critic:evaluate()
+    local v2 = self.target_critic:forward(s2):float():clone()
+
+    -- TODO: rescale r
+    -- y = r + (1-t) * gamma * V'
+    y = torch.add(r, v2:mul(self.discount):cmul(y))
+
+    self.critic:training()
+    local v = self.critic:forward(s):float()
+
+    -- A = r + (1-t) * gamma * V' - V
+    local delta = torch.add(y, v:mul(-1))
+    local adv = delta:clone()
+
+    if self.clip_delta then
+        delta[delta:ge(self.clip_delta)] = self.clip_delta
+        delta[delta:le(-self.clip_delta)] = -self.clip_delta
+    end
+
+    self:update_critic(s, delta)
+
+    self.critic:training()
+    local action_logits = self.actor:forward(s)
+    delta = self.log_softmax:forward(action_logits):float():clone()
+    adv = nn.utils.addSingletonDimension(adv, 2):expandAs(delta)
+    delta:cmul(adv)
+
+    if self.clip_delta then
+        delta[delta:ge(self.clip_delta)] = self.clip_delta
+        delta[delta:le(-self.clip_delta)] = -self.clip_delta
+    end
+
+    self:update_actor(s, delta)
+end
+
+function agent:update_critic(s, delta)
+    if self:use_gpu() then
+        delta = delta:cuda()
+    end
+
+    -- zero gradients
+    self.critic_dw:zero()
+
+    -- compute gradients
+    delta = nn.utils.addSingletonDimension(delta, 2)
+    self.critic:backward(s, delta)
+
+    -- gradient clipping
+    local grad_norm = self.critic_dw:norm()
+    if self.clip_grad > 0 and grad_norm > self.clip_grad then
+        self.critic_dw:mul(self.clip_grad / grad_norm)
+    end
+
+    self.critic_g:mul(0.95):add(0.05, self.critic_dw)
+    self.critic_tmp:cmul(self.critic_dw, self.critic_dw)
+    self.critic_g2:mul(0.95):add(0.05, self.critic_tmp)
+    self.critic_tmp:cmul(self.critic_g, self.critic_g)
+    self.critic_tmp:mul(-1)
+    self.critic_tmp:add(self.critic_g2)
+    self.critic_tmp:add(0.01)
+    self.critic_tmp:sqrt()
+
+    -- accumulate update
+    self.critic_deltas:mul(0):addcdiv(self.lr, self.critic_dw, self.critic_tmp)
+    self.critic_w:add(self.critic_deltas)
+end
+
+function agent:update_actor(s, delta)
+    if self:use_gpu() then
+        delta = delta:cuda()
+    end
+
+    -- zero gradients
+    self.actor_dw:zero()
+
+    -- compute gradients
+    self.actor:backward(s, delta)
+
+    -- gradient clipping
+    local grad_norm = self.actor_dw:norm()
+    if self.clip_grad > 0 and grad_norm > self.clip_grad then
+        self.actor_dw:mul(self.clip_grad / grad_norm)
+    end
+
+    self.actor_g:mul(0.95):add(0.05, self.actor_dw)
+    self.actor_tmp:cmul(self.actor_dw, self.actor_dw)
+    self.actor_g2:mul(0.95):add(0.05, self.actor_tmp)
+    self.actor_tmp:cmul(self.actor_g, self.actor_g)
+    self.actor_tmp:mul(-1)
+    self.actor_tmp:add(self.actor_g2)
+    self.actor_tmp:add(0.01)
+    self.actor_tmp:sqrt()
+
+    -- accumulate update
+    self.actor_deltas:mul(0):addcdiv(self.lr, self.actor_dw, self.actor_tmp)
+    self.actor_w:add(self.actor_deltas)
+end
+
+function agent:update_lr()
+    local t = math.max(0, self.numSteps - self.learn_start)
+    self.lr = (self.lr_start - self.lr_end) * (self.lr_endt - t)/self.lr_endt +
+                self.lr_end
+    self.lr = math.max(self.lr, self.lr_end)
+end
+
+function agent:create_critic()
+    print('Creating Agent Network from ' .. self.critic_name)
     local net_args = {
-        name           = self.qu_name,
+        name           = self.critic_name,
         hist_len       = self.hist_len or 10,
-        n_actions      = self.n_actions or 6,
+        n_actions      = 1,
         ncols          = self.ncols or 3,
         image_dims     = self.image_dims or {3, 32, 32},
         n_units        = self.n_units or {32, 64},
@@ -153,12 +309,12 @@ function agent:create_qu()
     return g_create_network(net_args)
 end
 
-function agent:create_mu()
-    print('Creating Agent Network from ' .. self.mu_name)
+function agent:create_actor()
+    print('Creating Agent Network from ' .. self.actor_name)
     local net_args = {
-        name           = self.mu_name,
+        name           = self.actor_name,
         hist_len       = self.hist_len or 10,
-        n_actions      = self.n_actions or 6,
+        n_actions      = self.n_actions * (self.hist_len - 1),
         ncols          = self.ncols or 3,
         image_dims     = self.image_dims or {3, 32, 32},
         n_units        = self.n_units or {32, 64},
@@ -188,11 +344,11 @@ end
 
 function agent:create_replay_buffer()
     local buffer_args = {
-        stateDim = self.state_dim, numActions = self.n_actions,
-        histLen = self.hist_len, gpu = self.gpu,
-        maxSize = self.replay_memory, histType = self.histType,
-        histSpacing = self.histSpacing, nonTermProb = self.nonTermProb,
-        bufferSize = self.bufferSize
+        frame_dim = self.state_dim,
+        mem_size = self.hist_len,
+        max_size = self.replay_memory,
+        batch_size = self.minibatch_size,
+        nonTermProb = self.nonTermProb,
     }
     return ReplayBuffer(buffer_args)
 end

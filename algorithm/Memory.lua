@@ -1,7 +1,3 @@
-require('algorithm/ActorNetwork')
-require('algorithm/ReplayBuffer')
-
-
 local memory = torch.class('Memory')
 
 
