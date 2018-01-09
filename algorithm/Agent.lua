@@ -65,14 +65,10 @@ function agent:__init(args)
     if self:use_gpu() then
         self.critic:cuda()
         self.actor:cuda()
-        self.log_softmax:cuda()
-        self.softmax:cuda()
         self.tensor_type = torch.CudaTensor
     else
         self.critic:float()
         self.actor:float()
-        self.log_softmax:float()
-        self.softmax:float()
         self.tensor_type = torch.FloatTensor
     end
 
@@ -139,8 +135,7 @@ function agent:perceive(reward, frame, terminal, testing, testing_ep)
         input = input:cuda()
     end
     self.actor:evaluate()
-    local action_logits = self.actor:forward(input, mem)
-    local action_probs = self.softmax:forward(action_logits)
+    local action_probs = self.actor:forward(input, mem):float():clone()
     local action, mem_idx, beh_idx = self:sample_action(action_probs)
 
     if self.numSteps > self.learn_start and not testing and
@@ -163,6 +158,9 @@ function agent:perceive(reward, frame, terminal, testing, testing_ep)
 
     if beh_idx < 1 or beh_idx > 6 then
         require('fb.debugger').enter()
+    end
+    if terminal then
+        self.memory:reset()
     end
     return beh_idx
 end
@@ -208,8 +206,9 @@ function agent:learn()
     self:update_critic(s, delta)
 
     self.critic:training()
-    local action_logits = self.actor:forward(s)
-    delta = self.log_softmax:forward(action_logits):float():clone()
+    local probs = self.actor:forward(s):float():clone()
+    probs[probs:eq(0)] = 1e-6
+    delta = torch.log(probs)
     adv = nn.utils.addSingletonDimension(adv, 2):expandAs(delta)
     delta:cmul(adv)
 

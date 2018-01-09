@@ -20,6 +20,10 @@ function memory:get(frame)
     return mem
 end
 
+function memory:reset()
+    self.mem = {}
+end
+
 function memory:replace(frame, idx)
     self.mem[idx] = frame:clone()
 end

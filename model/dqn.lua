@@ -27,6 +27,7 @@ function DQN:build_model(args)
     net:add(nn.Linear(nel, args.n_hid_enc))
     net:add(nn.ReLU())
     net:add(nn.Linear(args.n_hid_enc, args.n_actions))
+    net:add(nn.SoftMax())
     return net
 end
 

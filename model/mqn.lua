@@ -20,8 +20,8 @@ function MQN:build_model(args)
     local val_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
     key_blocks = nn.View(-1, T-1, edim):setNumInputDims(2)(key_blocks)
     val_blocks = nn.View(-1, T-1, edim):setNumInputDims(2)(val_blocks)
-    local hid, o = self:build_retrieval(args, key_blocks, val_blocks, 
-                cnn_features, args.conv_dim, unpack(init_states)) 
+    local hid, o = self:build_retrieval(args, key_blocks, val_blocks,
+                cnn_features, args.conv_dim, unpack(init_states))
     local hid2dim = nn.View(-1):setNumInputDims(1)(hid)
     local C = args.Linear(edim, edim)(hid2dim)
     local D = nn.CAddTable()({C, o})
@@ -38,7 +38,8 @@ function MQN:build_model(args)
     end
     local out = nn.View(-1):setNumInputDims(1)(hid_out)
     local q = nn.Linear(args.n_hid_enc, args.n_actions)(out)
-    return nn.gModule(input, {q})
+    local probs = nn.SoftMax()(q)
+    return nn.gModule(input, {probs})
 end
 
 function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_dim, c0, h0)
@@ -49,7 +50,7 @@ function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_di
     local hid = nn.View(1, -1):setNumInputDims(1)(context)
     local key_blocks_t = nn.Narrow(2, T - memsize, memsize)(key_blocks)
     local val_blocks_t = nn.Narrow(2, T - memsize, memsize)(val_blocks)
-    local MM_key = nn.MM(false, true) 
+    local MM_key = nn.MM(false, true)
     local key_out = MM_key({hid, key_blocks_t})
     local key_out2dim = nn.View(-1):setNumInputDims(2)(key_out)
     local P = nn.SoftMax()(key_out2dim)
