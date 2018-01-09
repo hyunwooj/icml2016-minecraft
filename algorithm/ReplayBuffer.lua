@@ -36,7 +36,7 @@ function buffer:add(s, a, r, s2, t)
     end
 
     self.ptr = self.ptr + 1
-    if self.ptr > self.mem_size then
+    if self.ptr > self.max_size then
         self.ptr = 1
         self.full = true
     end
@@ -59,5 +59,10 @@ function buffer:sample(batch_size)
         self.batch_s2[batch_idx] = self.s2[sample_idx]
         self.batch_t[batch_idx] = self.t[sample_idx]
     end
-    return self.batch_s, self.batch_a, self.batch_r, self.batch_s2, self.batch_t
+    s = self.batch_s:clone()
+    a = self.batch_a:clone()
+    r = self.batch_r:clone()
+    s2 = self.batch_s2:clone()
+    t = self.batch_t:clone()
+    return s, a, r, s2, t
 end

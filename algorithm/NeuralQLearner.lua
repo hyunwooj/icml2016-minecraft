@@ -199,7 +199,7 @@ function nql:getQUpdate(args)
         q[i] = q_all[i][a[i]]
     end
     delta:add(-1, q)
-    self.tderr_avg = (1-self.stat_eps)*self.tderr_avg + 
+    self.tderr_avg = (1-self.stat_eps)*self.tderr_avg +
             self.stat_eps*delta:clone():float():abs():mean()
 
     if self.clip_delta then

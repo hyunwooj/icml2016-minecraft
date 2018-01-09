@@ -7,6 +7,24 @@ See LICENSE file for full terms of limited license.
 require "torch"
 c = require "trepl.colorize"
 
+function weighted_choice(w)
+    -- https://gist.github.com/floort/1658357
+    cumulative_weights = {}
+    total = 0
+    for i=1, #w do
+        cumulative_weights[i] = total + w[i]
+        total = total + w[i]
+    end
+    -- rnd = math.random() * total
+    rnd = torch.uniform() * total
+    for i=1, #w do
+        if rnd < cumulative_weights[i] then
+            return i
+        end
+    end
+    return #w
+end
+
 function recursive_map(module, field, func, w_map)
     local str = ""
     if module[field] then
@@ -86,7 +104,7 @@ function share_weights(src, dst)
     local src_params = get_unique_parameters(src)
     local dst_params = get_unique_parameters(dst)
     local dst_total_params = dst:parameters()
-    assert(#src_params == #dst_params, string.format("#src_param (%d) != #dst_param (%d)", 
+    assert(#src_params == #dst_params, string.format("#src_param (%d) != #dst_param (%d)",
             #src_params, #dst_params))
     local check = {}
 
@@ -95,7 +113,7 @@ function share_weights(src, dst)
         for j=1,#src_params do
             local src_param = src_params[j]
             local copied = false
-            if not check[j] and dst_param:dim() == src_param:dim() and 
+            if not check[j] and dst_param:dim() == src_param:dim() and
                     dst_param:nElement() == src_param:nElement() then
                 for k=1,dst_param:dim() do
                     if dst_param:size()[k] ~= src_param:size()[k] then

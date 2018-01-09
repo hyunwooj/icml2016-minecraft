@@ -44,21 +44,19 @@ function agent:__init(args)
     self.min_reward     = args.min_reward or -1
     self.clip_delta     = args.clip_delta or 1
     self.target_q       = args.target_q or true
-    self.bestq          = 0
     self.gpu            = args.gpu
     self.ncols          = args.ncols or 3  -- number of color channels in input
     self.input_dims     = args.input_dims or {self.hist_len*self.ncols, 32, 32}
     self.image_dims     = args.image_dims or {self.ncols, 32, 32}
     self.bufferSize       = args.bufferSize or 512
     self.smooth_target_q  = args.smooth_target_q or true
-    self.target_q_eps     = args.target_q_eps or 1e-3
+    self.target_eps     = args.target_q_eps or 1e-3
     self.clip_grad        = args.clip_grad or 20
     self.transition_params = args.transition_params or {}
     self.critic_name       = args.network
     self.actor_name       = args.network
     self.name = self.critic_name
 
-    self.learn_start = 100
     self.critic = self:create_critic()
     self.actor = self:create_actor()
     self.log_softmax = nn.LogSoftMax()
@@ -125,6 +123,8 @@ function agent:perceive(reward, frame, terminal, testing, testing_ep)
     local frame = self:preprocess(frame)
     local state = self.memory:get(frame)
 
+    reward = self:process_reward(reward)
+
     if self.last_step and not testing then
         local s = self.last_step.s
         local a = self.last_step.a
@@ -134,18 +134,14 @@ function agent:perceive(reward, frame, terminal, testing, testing_ep)
         self.buffer:add(s, a, r, s2, t)
     end
 
-    input = nn.utils.addSingletonDimension(state, 1):float():div(255)
+    input = nn.utils.addSingletonDimension(state, 1):float():clone():div(255)
     if self:use_gpu() then
         input = input:cuda()
     end
     self.actor:evaluate()
     local action_logits = self.actor:forward(input, mem)
     local action_probs = self.softmax:forward(action_logits)
-    -- TODO: Add random noise for exploration
-    local _, action = torch.max(action_probs:squeeze(), 1)
-    action = action:totable()[1]
-    mem_idx = (action-1) % (self.hist_len-1) + 1
-    beh_idx = math.floor((action-1) / (self.hist_len-1)) + 1
+    local action, mem_idx, beh_idx = self:sample_action(action_probs)
 
     if self.numSteps > self.learn_start and not testing and
         self.numSteps % self.update_freq == 0 then
@@ -160,6 +156,11 @@ function agent:perceive(reward, frame, terminal, testing, testing_ep)
     self.last_step = {s=state, a=action}
 
     self.memory:replace(frame, mem_idx)
+
+    if not testing and self.target_q then
+        self:update_to_target()
+    end
+
     if beh_idx < 1 or beh_idx > 6 then
         require('fb.debugger').enter()
     end
@@ -170,18 +171,22 @@ function agent:learn()
     self:update_lr()
 
     local s, a, r, s2, t = self.buffer:sample(self.minibatch_size)
+    s = s:float():div(255)
+    s2 = s2:float():div(255)
     if self:use_gpu() then
         s = s:cuda()
         s2 = s2:cuda()
     end
+    if self.rescale_r then
+        r:div(self.r_max)
+    end
 
     -- y = (1-t)
-    local y = t:clone():float():mul(-1):add(1)
+    local y = t:float():mul(-1):add(1)
 
     self.target_critic:evaluate()
     local v2 = self.target_critic:forward(s2):float():clone()
 
-    -- TODO: rescale r
     -- y = r + (1-t) * gamma * V'
     y = torch.add(r, v2:mul(self.discount):cmul(y))
 
@@ -191,6 +196,9 @@ function agent:learn()
     -- A = r + (1-t) * gamma * V' - V
     local delta = torch.add(y, v:mul(-1))
     local adv = delta:clone()
+
+    self.tderr_avg = (1-self.stat_eps)*self.tderr_avg +
+            self.stat_eps*delta:clone():float():abs():mean()
 
     if self.clip_delta then
         delta[delta:ge(self.clip_delta)] = self.clip_delta
@@ -211,6 +219,48 @@ function agent:learn()
     end
 
     self:update_actor(s, delta)
+end
+
+function agent:update_to_target()
+    -- actor
+    if self.smooth_target_q then
+        self.target_actor_w:mul(1 - self.target_eps)
+        self.target_actor_w:add(self.target_eps, self.actor_w)
+    else
+        if self.numSteps % self.target_q == 1 then
+            self.target_actor = self.actor:clone()
+        end
+    end
+
+    -- critic
+    if self.smooth_target_q then
+        self.target_critic_w:mul(1 - self.target_eps)
+        self.target_critic_w:add(self.target_eps, self.critic_w)
+    else
+        if self.numSteps % self.target_q == 1 then
+            self.target_critic = self.critic:clone()
+        end
+    end
+end
+
+function agent:sample_action(probs)
+    self.ep = testing_ep or (self.ep_end +
+                math.max(0, (self.ep_start - self.ep_end) * (self.ep_endt -
+                math.max(0, self.numSteps - self.learn_start))/self.ep_endt))
+    local num_actions = probs:size():totable()[2]
+
+    local action
+    if torch.uniform() < self.ep then
+        -- action = torch.random(1, num_actions):totable()[1]
+         action = weighted_choice(probs:squeeze():totable())
+    else
+        _, action = torch.max(probs:squeeze(), 1)
+        action = action:totable()[1]
+    end
+
+    mem_idx = (action-1) % (self.hist_len-1) + 1
+    beh_idx = math.floor((action-1) / (self.hist_len-1)) + 1
+    return action, mem_idx, beh_idx
 end
 
 function agent:update_critic(s, delta)
@@ -281,6 +331,19 @@ function agent:update_lr()
     self.lr = (self.lr_start - self.lr_end) * (self.lr_endt - t)/self.lr_endt +
                 self.lr_end
     self.lr = math.max(self.lr, self.lr_end)
+end
+
+function agent:process_reward(reward)
+    if self.max_reward then
+        reward = math.min(reward, self.max_reward)
+    end
+    if self.min_reward then
+        reward = math.max(reward, self.min_reward)
+    end
+    if self.rescale_r then
+        self.r_max = math.max(self.r_max, reward)
+    end
+    return reward
 end
 
 function agent:create_critic()
@@ -376,4 +439,18 @@ end
 
 function agent:use_gpu()
     return self.gpu and self.gpu >= 0
+end
+
+function nql:report()
+    print('Actor')
+    print(get_weight_norms(self.actor.net))
+    print(get_grad_norms(self.actor.net))
+    print("Grad Norm: " .. tostring(self.actor_dw:norm()))
+
+    print('')
+
+    print('Critic')
+    print(get_weight_norms(self.critic.net))
+    print(get_grad_norms(self.critic.net))
+    print("Grad Norm: " .. tostring(self.critic_dw:norm()))
 end
