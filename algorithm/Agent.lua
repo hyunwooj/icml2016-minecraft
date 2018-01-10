@@ -255,7 +255,7 @@ function agent:sample_action(probs)
 
     local action
     if torch.uniform() < self.ep then
-        action = torch.random(1, num_actions):totable()[1]
+        action = torch.random(1, num_actions)
     else
         -- _, action = torch.max(probs:squeeze(), 1)
         -- action = action:totable()[1]
