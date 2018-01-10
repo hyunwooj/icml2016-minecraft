@@ -59,8 +59,6 @@ function agent:__init(args)
 
     self.critic = self:create_critic()
     self.actor = self:create_actor()
-    self.log_softmax = nn.LogSoftMax()
-    self.softmax = nn.SoftMax()
 
     if self:use_gpu() then
         self.critic:cuda()
@@ -189,11 +187,11 @@ function agent:learn()
     y = torch.add(r, v2:mul(self.discount):cmul(y))
 
     self.critic:training()
-    local v = self.critic:forward(s):float()
+    local v = self.critic:forward(s):float():clone()
 
     -- A = r + (1-t) * gamma * V' - V
     local delta = torch.add(y, v:mul(-1))
-    local adv = delta:clone()
+    local delta_v = delta:clone()
 
     self.tderr_avg = (1-self.stat_eps)*self.tderr_avg +
             self.stat_eps*delta:clone():float():abs():mean()
@@ -205,12 +203,19 @@ function agent:learn()
 
     self:update_critic(s, delta)
 
-    self.critic:training()
+    -- Actor
+    self.actor:training()
     local probs = self.actor:forward(s):float():clone()
+
+    n_actions = self.n_actions * (self.hist_len - 1)
+    local adv = torch.zeros(self.minibatch_size, n_actions):float()
+    for i=1,math.min(self.minibatch_size,a:size(1)) do
+        -- A = r + V' - V
+        adv[i][a[i]] = r[i] + delta_v[i]
+    end
+
     probs[probs:eq(0)] = 1e-6
-    delta = torch.log(probs)
-    adv = nn.utils.addSingletonDimension(adv, 2):expandAs(delta)
-    delta:cmul(adv)
+    delta = torch.log(probs):cmul(adv)
 
     if self.clip_delta then
         delta[delta:ge(self.clip_delta)] = self.clip_delta
@@ -250,11 +255,11 @@ function agent:sample_action(probs)
 
     local action
     if torch.uniform() < self.ep then
-        -- action = torch.random(1, num_actions):totable()[1]
-         action = weighted_choice(probs:squeeze():totable())
+        action = torch.random(1, num_actions):totable()[1]
     else
-        _, action = torch.max(probs:squeeze(), 1)
-        action = action:totable()[1]
+        -- _, action = torch.max(probs:squeeze(), 1)
+        -- action = action:totable()[1]
+        action = weighted_choice(probs:squeeze():totable())
     end
 
     mem_idx = (action-1) % (self.hist_len-1) + 1
