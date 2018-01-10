@@ -25,6 +25,10 @@ function weighted_choice(w)
     return #w
 end
 
+function unsqueeze(x, dim)
+    return nn.utils.addSingletonDimension(x, dim)
+end
+
 function recursive_map(module, field, func, w_map)
     local str = ""
     if module[field] then
