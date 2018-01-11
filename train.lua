@@ -185,9 +185,9 @@ while step < opt.steps do
                 -- Maintain and save only top K best models
                 if opt.saveNetworkParams then
                     local filename = string.format('save/%s_%03d.params.t7', opt.save_name, epoch)
-                    -- torch.save(filename, agent.w:clone():float())
-                    torch.save(filename, {actor=agent.actor_w:clone():float(),
-                                          critic=agent.critic_w:clone():float()})
+                    torch.save(filename, agent.w:clone():float())
+                    -- torch.save(filename, {actor=agent.actor_w:clone():float(),
+                    --                       critic=agent.critic_w:clone():float()})
                     print('Parameter saved to:', filename)
                 end
                 collectgarbage()
