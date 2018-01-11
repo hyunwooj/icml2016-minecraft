@@ -113,7 +113,7 @@ function agent:perceive(reward, rawframe, terminal, testing, testing_ep)
         input = input:cuda()
     end
     self.network:evaluate()
-    beh_action, mem_action = self:eGreedy(state, testing_ep)
+    mem_action, beh_action = self:eGreedy(state, testing_ep)
 
     if self.numSteps > self.learn_start and not testing and
         self.numSteps % self.update_freq == 0 then
@@ -167,7 +167,7 @@ function agent:learn()
 
     -- y = r + (1-t) * gamma * maxQ'
     mem_y = torch.add(r, mem_q2_max:mul(self.discount):cmul(y))
-    ben_y = torch.add(r, beh_q2_max:mul(self.discount):cmul(y))
+    beh_y = torch.add(r, beh_q2_max:mul(self.discount):cmul(y))
 
     self.network:training()
     local output = self.network:forward(s)
@@ -238,9 +238,9 @@ function agent:eGreedy(state, testing_ep)
                 math.max(0, self.numSteps - self.learn_start))/self.ep_endt))
     -- Epsilon greedy
     if torch.uniform() < self.ep then
-        beh_action = torch.random(1, self.n_actions)
         mem_action = torch.random(1, self.hist_len-1)
-        return beh_action, mem_action
+        beh_action = torch.random(1, self.n_actions)
+        return mem_action, beh_action
     else
         return self:greedy(state)
     end
@@ -277,22 +277,23 @@ function agent:greedy(state)
 
     self.network:evaluate()
     local output = self.network:forward(state)
-    _, mem_action = pick_best(output[1])
-    max_q, beh_action = pick_best(output[2])
+    _, mem_action = pick_best(output[1]:totable()[1])
+    max_q, beh_action = pick_best(output[2]:totable()[1])
     self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*max_q
     return mem_action, beh_action
 end
 
 function agent:update_parameter(s, mem_targets, beh_targets)
     if self:use_gpu() then
-        targets = targets:cuda()
+        mem_targets = mem_targets:cuda()
+        beh_targets = beh_targets:cuda()
     end
 
     -- zero gradients
     self.dw:zero()
 
     -- compute gradients
-    self.network:backward(s, targets)
+    self.network:backward(s, {mem_targets, beh_targets})
 
     -- gradient clipping
     local grad_norm = self.dw:norm()
