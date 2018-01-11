@@ -57,8 +57,6 @@ function agent:__init(args)
 
     self.network = self:create_network()
 
-    self.learn_start = 300
-
     if self:use_gpu() then
         self.network:cuda()
         self.tensor_type = torch.CudaTensor
