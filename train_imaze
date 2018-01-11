@@ -17,6 +17,7 @@ else
   lr=0.0005
   test_hist_len=50
 fi
+test_hist_len=$hist_len
 
 network="$name"
 seed=1

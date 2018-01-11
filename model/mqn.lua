@@ -37,10 +37,15 @@ function MQN:build_model(args)
         hid_out = nn.JoinTable(2)({F,K})
     end
     local out = nn.View(-1):setNumInputDims(1)(hid_out)
-    local q = nn.Linear(args.n_hid_enc, args.n_actions)(out)
-    return nn.gModule(input, {q})
+    -- local q = nn.Linear(args.n_hid_enc, args.n_actions)(out)
+    -- return nn.gModule(input, {q})
+
     -- local probs = nn.SoftMax()(q)
     -- return nn.gModule(input, {probs})
+
+    local mem_q = nn.Linear(args.n_hid_enc, args.hist_len-1)(out)
+    local beh_q = nn.Linear(args.n_hid_enc, args.n_actions)(out)
+    return nn.gModule(input, {mem_q, beh_q})
 end
 
 function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_dim, c0, h0)

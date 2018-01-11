@@ -15,6 +15,7 @@ require 'util.nnutils'
 require 'algorithm.NeuralQLearner'
 require 'algorithm.Agent'
 require 'algorithm.TestAgent'
+require 'algorithm.SharedQAgent'
 require 'algorithm.TransitionTable'
 
 function torchSetup(_opt)
