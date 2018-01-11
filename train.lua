@@ -24,7 +24,8 @@ cmd:option('-actrep', 1, 'how many times to repeat action')
 cmd:option('-save_name', '', 'filename used for saving network and training history')
 cmd:option('-network', '', 'name of architecture or the filename of pretrained model')
 -- cmd:option('-agent', 'NeuralQLearner', 'name of agent file to use')
-cmd:option('-agent', 'Agent', 'name of agent file to use')
+-- cmd:option('-agent', 'Agent', 'name of agent file to use')
+cmd:option('-agent', 'TestAgent', 'name of agent file to use')
 cmd:option('-agent_params', '', 'string of agent parameters')
 cmd:option('-seed', 1, 'random seed')
 cmd:option('-saveNetworkParams', true, 'saves the parameter in a separate file')
@@ -93,9 +94,9 @@ if #test_env > 0 then
     agent_param.target_q = nil
     agent_param.replay_memory = 10000
     test_agent = create_agent(opt, agent_param)
-    -- share_weights(agent.network.net, test_agent.network.net)
-    share_weights(agent.actor.net, test_agent.actor.net)
-    share_weights(agent.critic.net, test_agent.critic.net)
+    share_weights(agent.network.net, test_agent.network.net)
+    -- share_weights(agent.actor.net, test_agent.actor.net)
+    -- share_weights(agent.critic.net, test_agent.critic.net)
 end
 
 local learn_start = agent.learn_start
@@ -171,11 +172,11 @@ while step < opt.steps do
                     total_reward = total_reward/math.max(1, nepisodes)
                     if #test_reward_history[test_id] == 0 or
                             total_reward > torch.Tensor(test_reward_history[test_id]):max() then
-                        -- agent.best_test_network[test_id] = test_agent.network:clone():float()
-                        agent.best_test_network[test_id] = {
-                            actor=test_agent.actor:clone():float(),
-                            critic=test_agent.critic:clone():float(),
-                        }
+                        agent.best_test_network[test_id] = test_agent.network:clone():float()
+                        -- agent.best_test_network[test_id] = {
+                        --     actor=test_agent.actor:clone():float(),
+                        --     critic=test_agent.critic:clone():float(),
+                        -- }
                     end
                     test_reward_history[test_id][ind] = total_reward
                     print("Reward:", total_reward, "num. ep.:", nepisodes)
@@ -197,8 +198,8 @@ while step < opt.steps do
     if step%1000 == 0 then collectgarbage() end
     if step % opt.save_freq == 0 or step == opt.steps then
         local filename = 'save/' .. opt.save_name .. ".t7"
-        -- torch.save(filename, {model = agent.network,
-        torch.save(filename, {model = {actor = agent.actor, critic = agent.critic},
+        torch.save(filename, {model = agent.network,
+        -- torch.save(filename, {model = {actor = agent.actor, critic = agent.critic},
                                 best_model = agent.best_test_network,
                                 test_reward_history = test_reward_history,
                                 reward_history = reward_history,

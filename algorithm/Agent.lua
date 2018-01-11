@@ -112,10 +112,10 @@ function agent:__init(args)
     end
 end
 
-function agent:perceive(reward, frame, terminal, testing, testing_ep)
+function agent:perceive(reward, rawframe, terminal, testing, testing_ep)
     -- Preprocess state (will be set to nil if terminal)
-    local frame = self:preprocess(frame)
-    local state = self.memory:get(frame)
+    local frame = self:preprocess(rawframe)
+    local state = self.memory:concat(frame)
 
     reward = self:process_reward(reward)
 
@@ -128,13 +128,13 @@ function agent:perceive(reward, frame, terminal, testing, testing_ep)
         self.buffer:add(s, a, r, s2, t)
     end
 
-    input = nn.utils.addSingletonDimension(state, 1):float():clone():div(255)
+    input = unsqueeze(state, 1):float():clone():div(255)
     if self:use_gpu() then
         input = input:cuda()
     end
     self.actor:evaluate()
-    local action_probs = self.actor:forward(input, mem):float():clone()
-    local action, mem_idx, beh_idx = self:sample_action(action_probs)
+    local action_probs = self.actor:forward(input):float():clone()
+    local action, mem_idx, beh_idx = self:sample_action(action_probs, testing_ep)
 
     if self.numSteps > self.learn_start and not testing and
         self.numSteps % self.update_freq == 0 then
@@ -247,7 +247,7 @@ function agent:update_to_target()
     end
 end
 
-function agent:sample_action(probs)
+function agent:sample_action(probs, testing_ep)
     self.ep = testing_ep or (self.ep_end +
                 math.max(0, (self.ep_start - self.ep_end) * (self.ep_endt -
                 math.max(0, self.numSteps - self.learn_start))/self.ep_endt))
@@ -276,7 +276,7 @@ function agent:update_critic(s, delta)
     self.critic_dw:zero()
 
     -- compute gradients
-    delta = nn.utils.addSingletonDimension(delta, 2)
+    delta = unsqueeze(delta, 2)
     self.critic:backward(s, delta)
 
     -- gradient clipping

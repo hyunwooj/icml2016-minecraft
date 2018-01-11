@@ -6,7 +6,7 @@ function memory:__init(args)
     self.mem_size = args.mem_size
 end
 
-function memory:get(frame)
+function memory:concat(frame)
     -- Reset
     if #self.mem == 0 then
         for i = 1, self.mem_size do
@@ -26,4 +26,9 @@ end
 
 function memory:replace(frame, idx)
     self.mem[idx] = frame:clone()
+end
+
+function memory:enqueue(frame)
+    table.remove(self.mem, 1)
+    table.insert(self.mem, frame:clone())
 end
