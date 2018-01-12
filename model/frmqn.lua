@@ -32,6 +32,10 @@ function FRMQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_
         local all_input_sums = nn.CAddTable()({input, h2h})
         local reshaped = nn.View(-1, 4, edim):setNumInputDims(2)(all_input_sums)
         local n1, n2, n3, n4 = nn.SplitTable(2)(reshaped):split(4)
+        n1 = nn.Contiguous()(n1)
+        n2 = nn.Contiguous()(n2)
+        n3 = nn.Contiguous()(n3)
+        n4 = nn.Contiguous()(n4)
 
         local in_gate = nn.Sigmoid()(n1)
         local forget_gate = nn.Sigmoid()(n2)
