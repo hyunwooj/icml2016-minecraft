@@ -384,6 +384,7 @@ function nql:greedy(state)
     end
 
     self.network:evaluate()
+    state = unsqueeze(state)
     local q = self.network:forward(state):float():squeeze()
     local maxq = q[1]
     local besta = {1}
