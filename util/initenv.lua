@@ -18,6 +18,10 @@ require 'algorithm.TestAgent'
 require 'algorithm.SharedQAgent'
 require 'algorithm.SeparateQAgent'
 require 'algorithm.TransitionTable'
+require 'algorithm.MemNql'
+
+local dbg = require('fb.debugger')
+bp = dbg.enter
 
 function torchSetup(_opt)
     _opt = _opt or {}

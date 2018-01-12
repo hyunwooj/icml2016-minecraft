@@ -6,6 +6,7 @@ function buffer:__init(args)
     self.frame_dim = args.frame_dim
     self.mem_size = args.mem_size
     self.batch_size = args.batch_size
+    self.gpu = args.gpu
 
     self.s = torch.ByteTensor(self.max_size, self.mem_size*self.frame_dim)
     self.a = torch.ByteTensor(self.max_size)
@@ -25,10 +26,10 @@ function buffer:__init(args)
 end
 
 function buffer:add(s, a, r, s2, t)
-    self.s[self.ptr] = s
+    self.s[self.ptr]:copy(s:clone():mul(255):byte())
     self.a[self.ptr] = a
     self.r[self.ptr] = r
-    self.s2[self.ptr] = s2
+    self.s2[self.ptr]:copy(s:clone():mul(255):byte())
     if t then
         self.t[self.ptr] = 1
     else
@@ -53,16 +54,24 @@ function buffer:sample(batch_size)
     local sample_idxs = torch.randperm(n)[{{1, batch_size}}]:totable()
 
     for batch_idx, sample_idx in pairs(sample_idxs) do
-        self.batch_s[batch_idx] = self.s[sample_idx]
+        self.batch_s[batch_idx]:copy(self.s[sample_idx])
         self.batch_a[batch_idx] = self.a[sample_idx]
         self.batch_r[batch_idx] = self.r[sample_idx]
-        self.batch_s2[batch_idx] = self.s2[sample_idx]
+        self.batch_s2[batch_idx]:copy(self.s2[sample_idx])
         self.batch_t[batch_idx] = self.t[sample_idx]
     end
-    s = self.batch_s:clone()
+    s = self.batch_s:clone():float():div(255)
     a = self.batch_a:clone()
-    r = self.batch_r:clone()
+    r = self.batch_r:clone():float():div(255)
     s2 = self.batch_s2:clone()
     t = self.batch_t:clone()
+    if self:use_gpu() then
+        s = s:cuda()
+        s2 = s2:cuda()
+    end
     return s, a, r, s2, t
+end
+
+function buffer:use_gpu()
+    return self.gpu >= 0
 end
