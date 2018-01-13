@@ -19,6 +19,7 @@ require 'algorithm.SharedQAgent'
 require 'algorithm.SeparateQAgent'
 require 'algorithm.TransitionTable'
 require 'algorithm.MemNql'
+require 'algorithm.SharedMemNql'
 
 local dbg = require('fb.debugger')
 bp = dbg.enter

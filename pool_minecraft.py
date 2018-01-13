@@ -5,7 +5,7 @@ import time
 
 if __name__ == '__main__':
     cmd = ['bash', 'run_minecraft']
-    num_proc = 2
+    num_proc = 6
 
     print('Start pooling')
     # proc = [subproc.Popen(cmd, stdout = subproc.PIPE) for i in range(num_proc)]

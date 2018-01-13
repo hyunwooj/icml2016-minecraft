@@ -6,13 +6,14 @@ require 'model.drqn'
 require 'model.mqn'
 require 'model.rmqn'
 require 'model.frmqn'
+require 'model.shared_mqn'
 
 function g_create_network(args)
     local new_args = {}
     new_args.name               = args.name
     new_args.hist_len           = args.hist_len or 10
     new_args.n_actions          = args.n_actions or 6
-    new_args.ncols              = args.ncols or 3 
+    new_args.ncols              = args.ncols or 3
     new_args.image_dims         = args.image_dims or {3, 32, 32}
     new_args.input_dims         = args.input_dims or {new_args.hist_len * new_args.ncols, 32, 32}
     new_args.n_units            = args.n_units or {32, 64}
@@ -27,7 +28,7 @@ function g_create_network(args)
     new_args.gpu                = args.gpu or -1
     new_args.conv_dim           = new_args.n_units[#new_args.n_units] * 8 * 8
     new_args.Linear             = nn.LinearNB
-    
+
     if args.name == "dqn" then
         return DQN.new(new_args)
     elseif args.name == "drqn" then
@@ -38,6 +39,8 @@ function g_create_network(args)
         return RMQN.new(new_args)
     elseif args.name == "frmqn" then
         return FRMQN.new(new_args)
+    elseif args.name == "shared_mqn" then
+        return SharedMQN.new(new_args)
     else
         error("Invalid model name:" .. args.name)
     end
