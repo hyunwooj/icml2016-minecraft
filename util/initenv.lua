@@ -132,6 +132,9 @@ function setup(_opt)
     end
     _opt.agent_params.verbose = _opt.verbose
 
+    if _opt.test then
+        _opt.agent_params.replay_memory = 100
+    end
     local agent = dqn[_opt.agent](_opt.agent_params)
 
     if opt.verbose >= 1 then

@@ -17,7 +17,9 @@ cmd:option('-framework', 'environment.mcwrap', 'name of training framework')
 cmd:option('-env', '', 'task name for testing')
 cmd:option('-network', '', 'pretrained network file')
 cmd:option('-param', '', 'initilaize to the pretrained parameter if specified')
-cmd:option('-agent', 'NeuralQLearner', 'name of agent file to use')
+-- cmd:option('-agent', 'NeuralQLearner', 'name of agent file to use')
+cmd:option('-agent', 'SharedMemNql', 'name of agent file to use')
+-- cmd:option('-agent', 'MemNql', 'name of agent file to use')
 cmd:option('-agent_params', '', 'string of agent parameters')
 cmd:option('-threads', 1, 'number of BLAS threads')
 cmd:option('-best', 1, 'use best model')
@@ -28,6 +30,7 @@ cmd:option('-display', false, 'display screen')
 cmd:option('-top_down', false, 'display top-down view')
 cmd:option('-gpu', -1, 'gpu id')
 cmd:option('-video', '', 'save video/images to the specified folder')
+cmd:option('-test', true, 'test mode')
 cmd:text()
 
 local opt = cmd:parse(arg)
@@ -67,8 +70,13 @@ local top_down_img, full_img, screen_img, hist_img
 local env_path = 'environment/Forge/eclipse/tasks/' .. opt.env
 if opt.top_down and (opt.video ~= '' or opt.display) then
     py = require "fb.python"
-    local viewer = py.import("top_down_viewer")
-    td_viewer = viewer.create_viewer()
+    -- if original
+    -- local viewer = py.import("top_down_viewer")
+    -- td_viewer = viewer.create_viewer()
+    -- else
+    local viewer = py.import("mem_td_viewer")
+    td_viewer = viewer.create_mem_td_viewer()
+    -- endif
     td_viewer.initialize(env_path .. '/blockTypeInfo.xml', opt.img_size)
 end
 
@@ -80,6 +88,7 @@ for iter=1,opt.num_play do
     local goal_id = game_env:getGoalId()
     local pos_y, pos_x, dir = game_env:getPos()
     local video_dir = string.format("%s/%d", opt.video, iter)
+    local img_util = py.import("img_util")
     if opt.video ~= '' then
         os.execute("mkdir " .. video_dir)
     end
@@ -89,14 +98,22 @@ for iter=1,opt.num_play do
         td_viewer.draw_goal_block(string.format("%s/maps/%s/goal_%s.csv",
                 env_path, topology_id, goal_id))
     end
-    
+
     while not terminal do
         step = step + 1
         local action_index = agent:perceive(reward, screen, terminal, true, 0)
         local display_img = screen
         if opt.top_down and (opt.video ~= '' or opt.display) then
             pos_y, pos_x, dir = game_env:getPos()
-            py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
+            -- if original
+            -- py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
+            -- else
+            local mem = py.eval(img_util.flip_left_right(agent.memory.mem))
+            mem = torch.cat(mem, 3):permute(2, 3, 1)
+            local size = {#agent.memory.mem * opt.img_size, opt.img_size}
+            local mem_img = py.eval(img_util.resize_img(mem, unpack(size)))
+            py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img)
+            -- endif original
             display_img = py.eval(py_ret[0]):permute(3, 1, 2)
         end
         if opt.video ~= '' then
@@ -133,7 +150,7 @@ for iter=1,opt.num_play do
     print(string.format("Episode %d: %.2f (%d steps)", iter, ep_r, step))
     if opt.video ~= '' then
         file_name = video_dir .. ".mp4"
-        os.execute("ffmpeg -r 5 -i " .. video_dir .. 
+        os.execute("ffmpeg -r 5 -i " .. video_dir ..
                 "/%05d.png -vcodec libx264 -pix_fmt yuv420p " .. file_name)
     end
 
@@ -143,7 +160,7 @@ for iter=1,opt.num_play do
     final_rewards[topology_id][goal_id] = final_rewards[topology_id][goal_id] or {}
     table.insert(rewards[topology_id][goal_id], ep_r)
     table.insert(final_rewards[topology_id][goal_id], reward)
-    screen, reward, terminal = game_env:newGame() 
+    screen, reward, terminal = game_env:newGame()
 end
 
 function table_length(t)
@@ -174,17 +191,17 @@ for k1, v2 in pairsByKeys(rewards) do
         for k3, v3 in pairs(v2) do
             trial = trial + 1
             reward = reward + rewards[k1][k2][k3]
-            if final_rewards[k1][k2][k3] >= 1 then 
+            if final_rewards[k1][k2][k3] >= 1 then
                 success = success + 1
             elseif final_rewards[k1][k2][k3] <= -1 then
                 fail = fail + 1
             end
         end
     end
-    print(string.format("Topology: %d, Num Trials: %d, " .. 
+    print(string.format("Topology: %d, Num Trials: %d, " ..
         "Avg. Reward: %.2f, Success: %.3f, Fail: %.3f",
         k1, trial, reward / trial, success / trial, fail / trial))
 end
-print(string.format("Num plays: %d, Average reward: %.3f, Average success rate: %.3f", 
+print(string.format("Num plays: %d, Average reward: %.3f, Average success rate: %.3f",
         opt.num_play, total_r / opt.num_play, success / opt.num_play))
 print("Done.")
