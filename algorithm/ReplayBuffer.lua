@@ -29,7 +29,7 @@ function buffer:add(s, a, r, s2, t)
     self.s[self.ptr]:copy(s:clone():mul(255):byte())
     self.a[self.ptr] = a
     self.r[self.ptr] = r
-    self.s2[self.ptr]:copy(s:clone():mul(255):byte())
+    self.s2[self.ptr]:copy(s2:clone():mul(255):byte())
     if t then
         self.t[self.ptr] = 1
     else
@@ -62,8 +62,8 @@ function buffer:sample(batch_size)
     end
     s = self.batch_s:clone():float():div(255)
     a = self.batch_a:clone()
-    r = self.batch_r:clone():float():div(255)
-    s2 = self.batch_s2:clone()
+    r = self.batch_r:clone()
+    s2 = self.batch_s2:clone():float():div(255)
     t = self.batch_t:clone()
     if self:use_gpu() then
         s = s:cuda()
