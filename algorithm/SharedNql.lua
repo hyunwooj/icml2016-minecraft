@@ -380,6 +380,10 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     local action = (mem_action*(self.n_actions+1)) + beh_action
     self.last_step = {s=curState, a=action}
 
+    if terminal then
+        self.memory:reset()
+    end
+
     if not testing and self.target_q then
         if self.smooth_target_q then
             self.target_w:mul(1 - self.target_q_eps)
