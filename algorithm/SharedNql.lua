@@ -12,7 +12,7 @@ require 'algorithm.Memory'
 require 'algorithm.ReplayBuffer'
 
 
-local nql = torch.class('dqn.MemNql')
+local nql = torch.class('dqn.SharedNql')
 
 function nql:__init(args)
     self.state_dim  = args.state_dim or 3*32*32 -- State dimensionality.
@@ -171,6 +171,9 @@ function nql:getQUpdate(args)
     s2 = args.s2
     term = args.term
 
+    local beh_a = a % (self.n_actions+1)
+    local mem_a = a / (self.n_actions+1)
+
     -- The order of calls to forward is a bit odd in order
     -- to avoid unnecessary calls (we only need 2).
 
@@ -186,41 +189,73 @@ function nql:getQUpdate(args)
 
     -- Compute max_a Q(s_2, a).
     target_q_net:evaluate()
-    q2_max = target_q_net:forward(s2):float():max(2)
+    local output2 = target_q_net:forward(s2)
+    mem_q2_max = output2[1]:float():max(2)
+    beh_q2_max = output2[2]:float():max(2)
 
     -- Compute q2 = (1-terminal) * gamma * max_a Q(s2, a)
-    q2 = q2_max:clone():mul(self.discount):cmul(term)
+    mem_q2 = mem_q2_max:clone():mul(self.discount):cmul(term)
+    beh_q2 = beh_q2_max:clone():mul(self.discount):cmul(term)
 
-    delta = r:clone():float()
+    mem_delta = r:clone():float()
+    beh_delta = r:clone():float()
 
     if self.rescale_r then
-        delta:div(self.r_max)
+        mem_delta:div(self.r_max)
+        beh_delta:div(self.r_max)
     end
-    delta:add(q2)
+    mem_delta:add(mem_q2)
+    beh_delta:add(beh_q2)
 
     -- q = Q(s,a)
     self.network:training()
-    local q_all = self.network:forward(s):float()
-    q = torch.FloatTensor(q_all:size(1))
-    for i=1,q_all:size(1) do
-        q[i] = q_all[i][a[i]]
+    local output = self.network:forward(s)
+    local mem_q_all = output[1]:float()
+    local beh_q_all = output[2]:float()
+    mem_q = torch.FloatTensor(mem_q_all:size(1))
+    beh_q = torch.FloatTensor(beh_q_all:size(1))
+    for i=1,mem_q_all:size(1) do
+        mem_q[i] = mem_q_all[i][mem_a[i]]
     end
-    delta:add(-1, q)
+    for i=1,beh_q_all:size(1) do
+        beh_q[i] = beh_q_all[i][beh_a[i]]
+    end
+    mem_delta:add(-1, mem_q)
+    beh_delta:add(-1, beh_q)
     self.tderr_avg = (1-self.stat_eps)*self.tderr_avg +
-            self.stat_eps*delta:clone():float():abs():mean()
+            self.stat_eps*beh_delta:clone():float():abs():mean()
 
     if self.clip_delta then
-        delta[delta:ge(self.clip_delta)] = self.clip_delta
-        delta[delta:le(-self.clip_delta)] = -self.clip_delta
+        mem_delta[mem_delta:ge(self.clip_delta)] = self.clip_delta
+        mem_delta[mem_delta:le(-self.clip_delta)] = -self.clip_delta
+        beh_delta[beh_delta:ge(self.clip_delta)] = self.clip_delta
+        beh_delta[beh_delta:le(-self.clip_delta)] = -self.clip_delta
     end
 
-    local targets = torch.zeros(self.minibatch_size, self.n_actions):float()
-    for i=1,math.min(self.minibatch_size,a:size(1)) do
-        targets[i][a[i]] = delta[i]
+    local mem_targets = torch.zeros(self.minibatch_size, self.hist_len-1):float()
+    local beh_targets = torch.zeros(self.minibatch_size, self.n_actions):float()
+    for i=1,math.min(self.minibatch_size,mem_a:size(1)) do
+        mem_targets[i][mem_a[i]] = mem_delta[i]
+    end
+    for i=1,math.min(self.minibatch_size,beh_a:size(1)) do
+        beh_targets[i][beh_a[i]] = beh_delta[i]
     end
 
-    if self.gpu >= 0 then targets = targets:cuda() end
+    if self.gpu >= 0 then mem_targets = mem_targets:cuda() end
+    if self.gpu >= 0 then beh_targets = beh_targets:cuda() end
 
+    local targets = {
+        mem=mem_targets,
+        beh=beh_targets,
+    }
+    local delta = {
+        mem=mem_delta,
+        beh=beh_delta,
+    }
+    local q2_max = {
+        mem=mem_q2_max,
+        beh=beh_q2_max,
+    }
     return targets, delta, q2_max
 end
 
@@ -240,7 +275,7 @@ function nql:qLearnMinibatch()
     self.dw:zero()
 
     -- get new gradient
-    self.network:backward(s, targets)
+    self.network:backward(s, {targets.mem, targets.beh})
 
     -- compute linearly annealed learning rate
     local t = math.max(0, self.numSteps - self.learn_start)
@@ -315,13 +350,17 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     end
 
     -- Select action
-    local actionIndex = 1
+    -- local actionIndex = 1
+    local beh_action = 1
+    local mem_action = 1
     if not terminal then
-        actionIndex = self:eGreedy(curState, testing_ep, testing)
+        -- actionIndex = self:eGreedy(curState, testing_ep, testing)
+        mem_action, beh_action = self:eGreedy(curState, testing_ep, testing)
     end
 
     -- self.transitions:add_recent_action(actionIndex)
-    self.memory:enqueue(state)
+    -- self.memory:enqueue(state)
+    self.memory:replace(state, mem_action)
 
     --Do some Q-learning updates
     if self.numSteps > self.learn_start and not testing and
@@ -338,11 +377,8 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     -- self.lastState = state:clone()
     -- self.lastAction = actionIndex
     -- self.lastTerminal = terminal
-    self.last_step = {s=curState, a=actionIndex}
-
-    if terminal then
-        self.memory:reset()
-    end
+    local action = (mem_action*(self.n_actions+1)) + beh_action
+    self.last_step = {s=curState, a=action}
 
     if not testing and self.target_q then
         if self.smooth_target_q then
@@ -356,7 +392,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     end
 
     if not terminal then
-        return actionIndex
+        return beh_action
     else
         return 0
     end
@@ -369,7 +405,9 @@ function nql:eGreedy(state, testing_ep, testing)
                 math.max(0, self.numSteps - self.learn_start))/self.ep_endt))
     -- Epsilon greedy
     if torch.uniform() < self.ep then
-        return torch.random(1, self.n_actions)
+        mem_action = torch.random(1, self.hist_len-1)
+        beh_action = torch.random(1, self.n_actions)
+        return mem_action, beh_action
     else
         return self:greedy(state)
     end
@@ -387,29 +425,30 @@ function nql:greedy(state)
         state = state:cuda()
     end
 
-    self.network:evaluate()
-    state = unsqueeze(state, 1)
-    local q = self.network:forward(state):float():squeeze()
-    local maxq = q[1]
-    local besta = {1}
+    pick_best = function(q)
+        local maxq = q[1]
+        local besta = {1}
 
-    -- Evaluate all other actions (with random tie-breaking)
-    for a = 2, self.n_actions do
-        if q[a] > maxq then
-            besta = { a }
-            maxq = q[a]
-        elseif q[a] == maxq then
-            besta[#besta+1] = a
+        -- Evaluate all other actions (with random tie-breaking)
+        for a = 2, #q do
+            if q[a] > maxq then
+                besta = { a }
+                maxq = q[a]
+            elseif q[a] == maxq then
+                besta[#besta+1] = a
+            end
         end
+
+        local r = torch.random(1, #besta)
+        return maxq, besta[r]
     end
-    self.bestq = maxq
-    self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*maxq
 
-    local r = torch.random(1, #besta)
-
-    self.lastAction = besta[r]
-
-    return besta[r]
+    self.network:evaluate()
+    local output = self.network:forward(state)
+    _, mem_action = pick_best(output[1]:totable()[1])
+    max_q, beh_action = pick_best(output[2]:totable()[1])
+    self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*max_q
+    return mem_action, beh_action
 end
 
 function nql:report()

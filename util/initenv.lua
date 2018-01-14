@@ -13,13 +13,9 @@ require 'cudnn'
 require 'socket'
 require 'util.nnutils'
 require 'algorithm.NeuralQLearner'
-require 'algorithm.Agent'
-require 'algorithm.TestAgent'
-require 'algorithm.SharedQAgent'
-require 'algorithm.SeparateQAgent'
 require 'algorithm.TransitionTable'
-require 'algorithm.MemNql'
-require 'algorithm.SharedMemNql'
+require 'algorithm.Nql'
+require 'algorithm.SharedNql'
 
 local dbg = require('fb.debugger')
 bp = dbg.enter
