@@ -27,9 +27,9 @@ steps=15000000
 replay_memory=50000
 state_dim=3072
 batch_size=32
-# save_name=${env}_${name}
+save_name=${env}_${name}_${hist_len}
 agent_params="lr=$lr,hist_len=$hist_len,replay_memory=$replay_memory,network="\"$network\"",state_dim=$state_dim,minibatch_size=$batch_size"
-args="-agent $agent -save_name $save_name -env $env -agent_params $agent_params -steps $steps -gpu $gpu -seed $seed -test_env $test_env -test_hist_len $test_hist_len"
+args="-agent $agent -save_name $save_name -env $env -agent_params $agent_params -steps $steps -gpu $gpu -seed $seed -test_env $test_env -test_hist_len $test_hist_len -ipaddr $ipaddr"
 echo $args
 
 th train.lua $args
