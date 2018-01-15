@@ -17,9 +17,7 @@ cmd:option('-framework', 'environment.mcwrap', 'name of training framework')
 cmd:option('-env', '', 'task name for testing')
 cmd:option('-network', '', 'pretrained network file')
 cmd:option('-param', '', 'initilaize to the pretrained parameter if specified')
--- cmd:option('-agent', 'NeuralQLearner', 'name of agent file to use')
--- cmd:option('-agent', 'SharedMemNql', 'name of agent file to use')
-cmd:option('-agent', 'MemNql', 'name of agent file to use')
+cmd:option('-agent', 'NeuralQLearner', 'name of agent file to use')
 cmd:option('-agent_params', '', 'string of agent parameters')
 cmd:option('-threads', 1, 'number of BLAS threads')
 cmd:option('-best', 1, 'use best model')
@@ -66,6 +64,7 @@ if opt.video ~= '' then
 end
 
 local py, td_viewer
+local img_util
 local top_down_img, full_img, screen_img, hist_img
 local env_path = 'environment/Forge/eclipse/tasks/' .. opt.env
 if opt.top_down and (opt.video ~= '' or opt.display) then
@@ -78,6 +77,7 @@ if opt.top_down and (opt.video ~= '' or opt.display) then
     td_viewer = viewer.create_mem_td_viewer()
     -- endif
     td_viewer.initialize(env_path .. '/blockTypeInfo.xml', opt.img_size)
+    img_util = py.import("img_util")
 end
 
 for iter=1,opt.num_play do
@@ -88,7 +88,6 @@ for iter=1,opt.num_play do
     local goal_id = game_env:getGoalId()
     local pos_y, pos_x, dir = game_env:getPos()
     local video_dir = string.format("%s/%d", opt.video, iter)
-    local img_util = py.import("img_util")
     if opt.video ~= '' then
         os.execute("mkdir " .. video_dir)
     end
