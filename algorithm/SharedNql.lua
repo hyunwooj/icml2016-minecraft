@@ -336,6 +336,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     --curState = curState:resize(1, unpack(self.input_dims))
     curState = self.memory:concat(state)
     curState = curState:float():div(255)
+    curState = unsqueeze(curState, 1)
     if self:use_gpu() then
         curState = curState:cuda()
     end
