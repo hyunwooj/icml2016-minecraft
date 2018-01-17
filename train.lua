@@ -155,9 +155,8 @@ while step < opt.steps do
             if agent.v_avg then
                 v_history[ind] = agent.v_avg
                 td_history[ind] = agent.tderr_avg
-                qmax_history[ind] = agent.q_max
 
-                if opt.agent == "SeparateNql" then
+                if opt.agent ~= "NeuralQLearner" then
                     mem_v_history[ind] = agent.mem_v_avg
                     mem_td_history[ind] = agent.mem_tderr_avg
                 end
@@ -220,11 +219,13 @@ while step < opt.steps do
                                 test_history = test_history,
                                 arguments=opt,
                                 step=step}
+        if opt.agent ~= "NeuralQLearner" then
+            object.mem_v_history = mem_v_history
+            object.mem_td_history = mem_td_history
+        end
         if opt.agent == "SeparateNql" then
             object.mem_model = agent.mem_network
             object.mem_best_model = agent.mem_best_test_network
-            object.mem_v_history = mem_v_history
-            object.mem_td_history = mem_td_history
         end
         torch.save(filename, object)
         print('Saved:', filename)

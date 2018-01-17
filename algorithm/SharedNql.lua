@@ -118,7 +118,9 @@ function nql:__init(args)
     self.numSteps = 0 -- Number of perceived states.
     self.lastState = nil
     self.lastAction = nil
+    self.mem_v_avg = 0 -- V running average.
     self.v_avg = 0 -- V running average.
+    self.mem_tderr_avg = 0 -- TD error running average.
     self.tderr_avg = 0 -- TD error running average.
     self.stat_eps = 1e-3
 
@@ -222,6 +224,8 @@ function nql:getQUpdate(args)
     end
     mem_delta:add(-1, mem_q)
     beh_delta:add(-1, beh_q)
+    self.mem_tderr_avg = (1-self.stat_eps)*self.mem_tderr_avg +
+            self.stat_eps*mem_delta:clone():float():abs():mean()
     self.tderr_avg = (1-self.stat_eps)*self.tderr_avg +
             self.stat_eps*beh_delta:clone():float():abs():mean()
 
@@ -450,8 +454,9 @@ function nql:greedy(state)
 
     self.network:evaluate()
     local output = self.network:forward(state)
-    _, mem_action = pick_best(output[1]:totable()[1])
+    mem_max_q, mem_action = pick_best(output[1]:totable()[1])
     max_q, beh_action = pick_best(output[2]:totable()[1])
+    self.mem_v_avg = (1-self.stat_eps)*self.mem_v_avg + self.stat_eps*mem_max_q
     self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*max_q
     return mem_action, beh_action
 end
