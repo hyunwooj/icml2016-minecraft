@@ -13,6 +13,8 @@ function buffer:__init(args)
     self.r = torch.FloatTensor(self.max_size)
     self.s2 = torch.ByteTensor(self.max_size, self.mem_size*self.frame_dim)
     self.t = torch.ByteTensor(self.max_size)
+    self.time = torch.ByteTensor(self.max_size, self.mem_size)
+    self.time2 = torch.ByteTensor(self.max_size, self.mem_size)
 
     self.ptr = 1
     self.full = false
@@ -22,10 +24,18 @@ function buffer:__init(args)
     self.batch_r = torch.FloatTensor(self.batch_size)
     self.batch_s2 = torch.ByteTensor(self.batch_size, self.mem_size*self.frame_dim)
     self.batch_t = torch.ByteTensor(self.batch_size)
+    self.batch_time = torch.ByteTensor(self.batch_size, self.mem_size)
+    self.batch_time2 = torch.ByteTensor(self.batch_size, self.mem_size)
 
 end
 
 function buffer:add(s, a, r, s2, t)
+    local time = s.time
+    local s = s.frames
+
+    local time2 = s2.time
+    local s2 = s2.frames
+
     self.s[self.ptr]:copy(s:clone():mul(255):byte())
     self.a[self.ptr] = a
     self.r[self.ptr] = r
@@ -35,6 +45,8 @@ function buffer:add(s, a, r, s2, t)
     else
         self.t[self.ptr] = 0
     end
+    self.time[self.ptr]:copy(time:clone():byte())
+    self.time2[self.ptr]:copy(time2:clone():byte())
 
     self.ptr = self.ptr + 1
     if self.ptr > self.max_size then
@@ -59,16 +71,24 @@ function buffer:sample(batch_size)
         self.batch_r[batch_idx] = self.r[sample_idx]
         self.batch_s2[batch_idx]:copy(self.s2[sample_idx])
         self.batch_t[batch_idx] = self.t[sample_idx]
+        self.batch_time[batch_idx]:copy(self.time[sample_idx])
+        self.batch_time2[batch_idx]:copy(self.time2[sample_idx])
     end
     s = self.batch_s:clone():float():div(255)
     a = self.batch_a:clone()
     r = self.batch_r:clone()
     s2 = self.batch_s2:clone():float():div(255)
     t = self.batch_t:clone()
+    time = self.batch_time:clone()
+    time2 = self.batch_time2:clone()
     if self:use_gpu() then
         s = s:cuda()
         s2 = s2:cuda()
+        time = time:cuda()
+        time2 = time2:cuda()
     end
+    s = {frames=s, times=time}
+    s2 = {frames=s2, times=time2}
     return s, a, r, s2, t
 end
 

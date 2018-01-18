@@ -165,13 +165,16 @@ end
 
 function nql:getQUpdate(args)
     local s, a, r, s2, term, delta
+    local time1, time2
     local q, q2, q2_max
 
-    s = args.s
+    s = args.s.frames
     a = args.a
     r = args.r
-    s2 = args.s2
+    s2 = args.s2.frames
     term = args.term
+    times = args.s.times
+    times2 = args.s2.times
 
     local beh_a = a % (self.n_actions+1)
     local mem_a = a / (self.n_actions+1)
@@ -191,7 +194,7 @@ function nql:getQUpdate(args)
 
     -- Compute max_a Q(s_2, a).
     target_q_net:evaluate()
-    local output2 = target_q_net:forward(s2)
+    local output2 = target_q_net:forward(s2, times2)
     mem_q2_max = output2[1]:float():max(2)
     beh_q2_max = output2[2]:float():max(2)
 
@@ -211,7 +214,7 @@ function nql:getQUpdate(args)
 
     -- q = Q(s,a)
     self.network:training()
-    local output = self.network:forward(s)
+    local output = self.network:forward(s, times)
     local mem_q_all = output[1]:float()
     local beh_q_all = output[2]:float()
     mem_q = torch.FloatTensor(mem_q_all:size(1))
@@ -279,7 +282,8 @@ function nql:qLearnMinibatch()
     self.dw:zero()
 
     -- get new gradient
-    self.network:backward(s, {targets.mem, targets.beh})
+    local zero_grad = targets.mem:clone():zero()
+    self.network:backward({s.frames, s.times}, {targets.mem, targets.beh, zero_grad})
 
     -- compute linearly annealed learning rate
     local t = math.max(0, self.numSteps - self.learn_start)
@@ -312,8 +316,10 @@ end
 -- Sample a mini-batch of transition and perform gradient descent
 -- Choose one of the actions
 function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
+    local time_step = rawstate.screen.new(1):fill(rawstate.time)
+    local rawstate = rawstate.screen
     -- Preprocess state (will be set to nil if terminal)
-    local state = self:preprocess(rawstate)
+    local frame = self:preprocess(rawstate)
     local curState
 
     if self.max_reward then
@@ -326,7 +332,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         self.r_max = math.max(self.r_max, reward)
     end
 
-    --self.transitions:add_recent_state(state, terminal)
+    --self.transitions:add_recent_state(frame, terminal)
 
     --local currentFullState = self.transitions:get_recent()
 
@@ -338,18 +344,21 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
 
     --curState= self.transitions:get_recent()
     --curState = curState:resize(1, unpack(self.input_dims))
-    curState = self.memory:concat(state)
+    curState, times = self.memory:concat({frame=frame, time=time_step})
     curState = curState:float():div(255)
     curState = unsqueeze(curState, 1)
+    times = unsqueeze(times, 1)
     if self:use_gpu() then
         curState = curState:cuda()
+        times = times:cuda()
     end
+    local state = {frames=curState, time=times}
 
     if self.last_step and not testing then
         local s = self.last_step.s
         local a = self.last_step.a
         local r = reward
-        local s2 = curState
+        local s2 = state
         local t = terminal
         self.buffer:add(s, a, r, s2, t)
     end
@@ -360,12 +369,23 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     local mem_action = 1
     if not terminal then
         -- actionIndex = self:eGreedy(curState, testing_ep, testing)
-        mem_action, beh_action = self:eGreedy(curState, testing_ep, testing)
+        mem_action, beh_action, atten = self:eGreedy(state, testing_ep, testing)
+    end
+
+    if atten ~= nil then
+        local idxs = {}
+        local recalled = atten:gt(torch.mean(atten)):totable()[1]
+        for idx, val in pairs(recalled) do
+            if val == 1 then
+                table.insert(idxs, idx)
+            end
+        end
+        self.memory:update_time(idxs, time_step)
     end
 
     -- self.transitions:add_recent_action(actionIndex)
     -- self.memory:enqueue(state)
-    self.memory:replace(state, mem_action)
+    self.memory:replace_frame({frame=frame, time=time_step}, mem_action)
 
     --Do some Q-learning updates
     if self.numSteps > self.learn_start and not testing and
@@ -379,11 +399,11 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         self.numSteps = self.numSteps + 1
     end
 
-    -- self.lastState = state:clone()
+    -- self.lastState = frame:clone()
     -- self.lastAction = actionIndex
     -- self.lastTerminal = terminal
     local action = (mem_action*(self.n_actions+1)) + beh_action
-    self.last_step = {s=curState, a=action}
+    self.last_step = {s=state, a=action}
 
     if terminal then
         self.memory:reset()
@@ -412,6 +432,8 @@ function nql:eGreedy(state, testing_ep, testing)
     self.ep = testing_ep or (self.ep_end +
                 math.max(0, (self.ep_start - self.ep_end) * (self.ep_endt -
                 math.max(0, self.numSteps - self.learn_start))/self.ep_endt))
+    -- self.learn_start = 100
+    -- self.ep = 0
     -- Epsilon greedy
     if torch.uniform() < self.ep then
         mem_action = torch.random(1, self.hist_len-1)
@@ -424,6 +446,8 @@ end
 
 
 function nql:greedy(state)
+    local times = state.time
+    local state = state.frames
     -- Turn single state into minibatch.  Needed for convolutional nets.
     if state:dim() == 2 then
         assert(false, 'Input must be at least 3D')
@@ -453,12 +477,15 @@ function nql:greedy(state)
     end
 
     self.network:evaluate()
-    local output = self.network:forward(state)
+    local output = self.network:forward(state, times)
     mem_max_q, mem_action = pick_best(output[1]:totable()[1])
     max_q, beh_action = pick_best(output[2]:totable()[1])
     self.mem_v_avg = (1-self.stat_eps)*self.mem_v_avg + self.stat_eps*mem_max_q
     self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*max_q
-    return mem_action, beh_action
+
+    local atten = output[3]
+
+    return mem_action, beh_action, atten
 end
 
 function nql:report()

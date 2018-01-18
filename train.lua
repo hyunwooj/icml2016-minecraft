@@ -47,21 +47,26 @@ function eval_agent(env, agent, steps)
     local episode_reward = 0
     screen, reward, terminal = env:newGame()
     local estep = 1
+    local time_step = 0
     while true do
         xlua.progress(math.min(estep, steps), steps)
-        local action_index = agent:perceive(reward, screen, terminal, true, 0.0)
+        local state = {screen=screen, time=time_step}
+        local action_index = agent:perceive(reward, state, terminal, true, 0.0)
         screen, reward, terminal = env:step(agent.actions[action_index])
         if estep % 1000 == 0 then collectgarbage() end
         episode_reward = episode_reward + reward
+        time_step = time_step + 1
         if terminal then
             total_reward = total_reward + episode_reward
             episode_reward = 0
             nepisodes = nepisodes + 1
-            action_index = agent:perceive(reward, screen, terminal, true, 0.0)
+            local state = {screen=screen, time=time_step}
+            action_index = agent:perceive(reward, state, terminal, true, 0.0)
             if estep >= steps then
                 break
             end
             screen, reward, terminal = env:newGame()
+            time_step = 0
         end
         estep = estep + 1
     end
@@ -126,14 +131,16 @@ while step < opt.steps do
     step = step + 1
     xlua.progress(math.min(step - epoch * opt.eval_freq, opt.eval_freq), opt.eval_freq)
     if step % opt.eval_freq == 0 and step > learn_start then ev_flag = true end
-    local action_index = agent:perceive(reward, screen, terminal)
+    local state = {screen=screen, time=ep_step}
+    local action_index = agent:perceive(reward, state, terminal)
     screen, reward, terminal = game_env:step(game_actions[action_index], true)
     ep_reward = ep_reward + reward
     ep_step = ep_step + 1
 
     if terminal then
         step = step + 1
-        local action_index = agent:perceive(reward, screen, terminal)
+        local state = {screen=screen, time=ep_step}
+        local action_index = agent:perceive(reward, state, terminal)
         if step % opt.eval_freq == 0 and step > learn_start then ev_flag = true end
         screen, reward, terminal = game_env:newGame()
         ep_reward = 0

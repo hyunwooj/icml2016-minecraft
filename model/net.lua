@@ -5,7 +5,7 @@ function Net:__init(args)
     self.init_states = self:build_init_states(args)
     self:reset_init_states()
     self.recurrent = #self.init_states > 0
-    self.net = self:build_model(args) 
+    self.net = self:build_model(args)
 
     if args.gpu > 0 then
         self:cuda()
@@ -22,7 +22,7 @@ end
 
 function Net:build_init_states(args)
     return {}
-end   
+end
 
 function Net:reset_init_states(batch_size)
     for j=1,#self.init_states do
@@ -33,16 +33,19 @@ function Net:reset_init_states(batch_size)
     end
 end
 
-function Net:forward(x)
+function Net:forward(x, t)
+    local input = {x}
+    if t ~= nil then
+        table.insert(input, t)
+    end
     if self.recurrent then
-        local input = {x}
         self:reset_init_states(x:size(1))
         for i = 1, #self.init_states do
             table.insert(input, self.init_states[i])
         end
         return self.net:forward(input)
     else
-        return self.net:forward(x)
+        return self.net:forward(input)
     end
 end
 
@@ -59,7 +62,7 @@ function Net:backward(x, gradOutput)
 end
 
 function Net:getParameters()
-    return self.net:getParameters() 
+    return self.net:getParameters()
 end
 
 function Net:clone()
@@ -95,7 +98,7 @@ function Net:evaluate()
     return self
 end
 
-function Net:share_module(name, node) 
+function Net:share_module(name, node)
     if self.share_list[name] == nil then
         self.share_list[name] = {node}
     else

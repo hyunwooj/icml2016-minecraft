@@ -6,6 +6,7 @@ require 'model.drqn'
 require 'model.mqn'
 require 'model.rmqn'
 require 'model.frmqn'
+require 'model.reten_mqn'
 require 'model.shared_mqn'
 require 'model.shared_rmqn'
 require 'model.shared_frmqn'
@@ -47,6 +48,8 @@ function g_create_network(args)
         return SharedRMQN.new(new_args)
     elseif args.name == "shared_frmqn" then
         return SharedFRMQN.new(new_args)
+    elseif args.name == "reten_mqn" then
+        return RetenMQN.new(new_args)
     else
         error("Invalid model name:" .. args.name)
     end
