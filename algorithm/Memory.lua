@@ -13,10 +13,10 @@ function memory:concat(state)
     -- Reset
     if #self.mem == 0 then
         for i = 1, self.mem_size do
-            rand_frame = torch.rand(unpack(frame:size():totable())):mul(255):byte()
-            table.insert(self.mem, rand_frame)
-            -- zero_frame = frame:clone():zero()
-            -- table.insert(self.mem, zero_frame)
+            -- rand_frame = torch.rand(unpack(frame:size():totable())):mul(255):byte()
+            -- table.insert(self.mem, rand_frame)
+            zero_frame = frame:clone():zero()
+            table.insert(self.mem, zero_frame)
             table.insert(self.times, time:clone():zero())
         end
     end
