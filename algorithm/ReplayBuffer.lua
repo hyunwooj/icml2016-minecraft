@@ -10,6 +10,7 @@ function buffer:__init(args)
 
     self.s = torch.ByteTensor(self.max_size, self.mem_size*self.frame_dim)
     self.a = torch.ByteTensor(self.max_size)
+    self.mem_r = torch.FloatTensor(self.max_size)
     self.r = torch.FloatTensor(self.max_size)
     self.s2 = torch.ByteTensor(self.max_size, self.mem_size*self.frame_dim)
     self.t = torch.ByteTensor(self.max_size)
@@ -21,6 +22,7 @@ function buffer:__init(args)
 
     self.batch_s = torch.ByteTensor(self.batch_size, self.mem_size*self.frame_dim)
     self.batch_a = torch.ByteTensor(self.batch_size)
+    self.batch_mem_r = torch.FloatTensor(self.batch_size)
     self.batch_r = torch.FloatTensor(self.batch_size)
     self.batch_s2 = torch.ByteTensor(self.batch_size, self.mem_size*self.frame_dim)
     self.batch_t = torch.ByteTensor(self.batch_size)
@@ -38,7 +40,8 @@ function buffer:add(s, a, r, s2, t)
 
     self.s[self.ptr]:copy(s:clone():mul(255):byte())
     self.a[self.ptr] = a
-    self.r[self.ptr] = r
+    self.mem_r[self.ptr] = r.mem
+    self.r[self.ptr] = r.beh
     self.s2[self.ptr]:copy(s2:clone():mul(255):byte())
     if t then
         self.t[self.ptr] = 1
@@ -68,6 +71,7 @@ function buffer:sample(batch_size)
     for batch_idx, sample_idx in pairs(sample_idxs) do
         self.batch_s[batch_idx]:copy(self.s[sample_idx])
         self.batch_a[batch_idx] = self.a[sample_idx]
+        self.batch_mem_r[batch_idx] = self.mem_r[sample_idx]
         self.batch_r[batch_idx] = self.r[sample_idx]
         self.batch_s2[batch_idx]:copy(self.s2[sample_idx])
         self.batch_t[batch_idx] = self.t[sample_idx]
@@ -76,6 +80,7 @@ function buffer:sample(batch_size)
     end
     s = self.batch_s:clone():float():div(255)
     a = self.batch_a:clone()
+    mem_r = self.batch_mem_r:clone()
     r = self.batch_r:clone()
     s2 = self.batch_s2:clone():float():div(255)
     t = self.batch_t:clone()
@@ -89,6 +94,7 @@ function buffer:sample(batch_size)
     end
     s = {frames=s, times=time}
     s2 = {frames=s2, times=time2}
+    r = {mem=mem_r, beh=r}
     return s, a, r, s2, t
 end
 

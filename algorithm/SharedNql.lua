@@ -10,6 +10,7 @@ end
 require 'model.init'
 require 'algorithm.Memory'
 require 'algorithm.ReplayBuffer'
+require 'util/lua_utils'
 
 
 local nql = torch.class('dqn.SharedNql')
@@ -114,6 +115,7 @@ function nql:__init(args)
     -- self.transitions = dqn.TransitionTable(transition_args)
     self.memory = self:create_memory()
     self.buffer = self:create_replay_buffer()
+    self.reten_history = {}
 
     self.numSteps = 0 -- Number of perceived states.
     self.lastState = nil
@@ -170,7 +172,8 @@ function nql:getQUpdate(args)
 
     s = args.s.frames
     a = args.a
-    r = args.r
+    mem_r = args.r.mem
+    r = args.r.beh
     s2 = args.s2.frames
     term = args.term
     times = args.s.times
@@ -202,7 +205,7 @@ function nql:getQUpdate(args)
     mem_q2 = mem_q2_max:clone():mul(self.discount):cmul(term)
     beh_q2 = beh_q2_max:clone():mul(self.discount):cmul(term)
 
-    mem_delta = r:clone():float()
+    mem_delta = mem_r:clone():float()
     beh_delta = r:clone():float()
 
     if self.rescale_r then
@@ -283,7 +286,8 @@ function nql:qLearnMinibatch()
 
     -- get new gradient
     local zero_grad = targets.mem:clone():zero()
-    self.network:backward({s.frames, s.times}, {targets.mem, targets.beh, zero_grad})
+    self.network:backward({s.frames, s.times},
+                          {targets.mem, targets.beh, zero_grad, zero_grad})
 
     -- compute linearly annealed learning rate
     local t = math.max(0, self.numSteps - self.learn_start)
@@ -357,7 +361,16 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     if self.last_step and not testing then
         local s = self.last_step.s
         local a = self.last_step.a
-        local r = reward
+
+        local reten_reward
+        if #self.reten_history == 0 then
+            reten_reward = 0
+        else
+            reten_reward = 1 - (sum(unpack(self.reten_history)) / #self.reten_history)
+        end
+
+        local r = {beh=reward,
+                   mem=self.last_step.r.mem}
         local s2 = state
         local t = terminal
         self.buffer:add(s, a, r, s2, t)
@@ -367,9 +380,13 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     -- local actionIndex = 1
     local beh_action = 1
     local mem_action = 1
+    local atten, reten
+    local output
     if not terminal then
         -- actionIndex = self:eGreedy(curState, testing_ep, testing)
-        mem_action, beh_action, atten = self:eGreedy(state, testing_ep, testing)
+        output = self:eGreedy(state, testing_ep, testing)
+        mem_action, beh_action = output[1], output[2]
+        atten, reten = output[3], output[4]
     end
 
     if atten ~= nil then
@@ -381,6 +398,12 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
             end
         end
         self.memory:update_time(idxs, time_step)
+    end
+    local reten_reward = 0
+    if reten ~= nil then
+        table.insert(self.reten_history, reten_reward[1][mem_action])
+        reten_reward = reten - torch.mean(reten)
+        reten_reward = reten_reward[1][mem_action]
     end
 
     -- self.transitions:add_recent_action(actionIndex)
@@ -403,10 +426,11 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     -- self.lastAction = actionIndex
     -- self.lastTerminal = terminal
     local action = (mem_action*(self.n_actions+1)) + beh_action
-    self.last_step = {s=state, a=action}
+    self.last_step = {s=state, a=action, r={mem=reten_reward}}
 
     if terminal then
         self.memory:reset()
+        self.reten_history = {}
     end
 
     if not testing and self.target_q then
@@ -438,7 +462,7 @@ function nql:eGreedy(state, testing_ep, testing)
     if torch.uniform() < self.ep then
         mem_action = torch.random(1, self.hist_len-1)
         beh_action = torch.random(1, self.n_actions)
-        return mem_action, beh_action
+        return {mem_action, beh_action}
     else
         return self:greedy(state)
     end
@@ -484,8 +508,9 @@ function nql:greedy(state)
     self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*max_q
 
     local atten = output[3]
+    local reten = output[4]
 
-    return mem_action, beh_action, atten
+    return {mem_action, beh_action, atten, reten}
 end
 
 function nql:report()
