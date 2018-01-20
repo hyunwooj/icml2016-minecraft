@@ -31,8 +31,9 @@ function MQN:build_model(args)
     local val_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
     key_blocks = nn.View(-1, T-1, edim):setNumInputDims(2)(key_blocks)
     val_blocks = nn.View(-1, T-1, edim):setNumInputDims(2)(val_blocks)
+    local c0, h0 = unpack(init_states)
     local hid, o, atten = self:build_retrieval(args, key_blocks, val_blocks,
-                cnn_features, args.conv_dim, unpack(init_states))
+                cnn_features, args.conv_dim, c0, h0, reten)
     local hid2dim = nn.View(-1):setNumInputDims(1)(hid)
     local C = args.Linear(edim, edim)(hid2dim)
     local D = nn.CAddTable()({C, o})
@@ -49,13 +50,7 @@ function MQN:build_model(args)
     end
     local out = nn.View(-1):setNumInputDims(1)(hid_out)
 
-    -- reten = nn.ExpandAs()({out, reten})
-    -- local dim_out = nn.CMulTable()({reten, out})
-
-    local flipped = nn.AddConstant(1)(nn.MulConstant(-1)(reten))
     local mem_q = nn.Linear(args.n_hid_enc, args.hist_len-1)(out)
-    mem_q = nn.CMulTable()({flipped, mem_q})
-
     local beh_q = nn.Linear(args.n_hid_enc, args.n_actions)(out)
     return nn.gModule(input, {mem_q, beh_q, atten})
 end
@@ -77,7 +72,7 @@ function MQN:build_retention(args, history_flat, t)
     return reten
 end
 
-function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_dim, c0, h0)
+function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_dim, c0, h0, reten)
     local T = args.hist_len
     local edim = args.edim
     local memsize = math.min(T-1, args.memsize)
@@ -88,15 +83,23 @@ function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_di
     local MM_key = nn.MM(false, true)
     local key_out = MM_key({hid, key_blocks_t})
     local key_out2dim = nn.View(-1):setNumInputDims(2)(key_out)
-    local P = nn.SparseMax()(key_out2dim)
-    local probs3dim = nn.View(1, -1):setNumInputDims(1)(P)
+
+    -- local P = nn.SparseMax()(key_out2dim)
+    -- local probs3dim = nn.View(1, -1):setNumInputDims(1)(P)
+
+    local atten = nn.SparseMax()(key_out2dim)
+    atten = nn.CAddTable()({atten, reten})
+    atten = nn.Normalize(1)(atten)
+    local probs3dim = nn.View(1, -1):setNumInputDims(1)(atten)
+
     local MM_val = nn.MM(false, false)
     local o = MM_val({probs3dim, val_blocks_t})
     if args.gpu and args.gpu > 0 then
         MM_key = MM_key:cuda()
         MM_val = MM_val:cuda()
     end
-    return context, o, P
+    -- return context, o, P
+    return context, o, atten
 end
 
 function MQN:build_context(args, x, xdim, edim, c0, h0)
