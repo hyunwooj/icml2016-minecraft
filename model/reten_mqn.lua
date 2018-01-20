@@ -59,7 +59,7 @@ function MQN:build_retention(args, history_flat, t)
     local T = args.hist_len
 
     local history_t = nn.Narrow(2, 1, T-1)(t)
-    local current_t = nn.Narrow(2, T-1, 1)(t)
+    local current_t = nn.Narrow(2, T, 1)(t)
     current_t = nn.ExpandAs()({history_t, current_t})
 
     local t = nn.CSubTable()({history_t, current_t})
