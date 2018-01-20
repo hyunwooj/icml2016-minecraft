@@ -100,7 +100,8 @@ for iter=1,opt.num_play do
 
     while not terminal do
         step = step + 1
-        local action_index = agent:perceive(reward, screen, terminal, true, 0)
+        local state = {screen=screen, time=step}
+        local action_index = agent:perceive(reward, state, terminal, true, 0)
         local display_img = screen
         if opt.top_down and (opt.video ~= '' or opt.display) then
             pos_y, pos_x, dir = game_env:getPos()
@@ -131,7 +132,8 @@ for iter=1,opt.num_play do
     elseif reward <= -1 then
         fail = fail + 1
     end
-    local action_index = agent:perceive(reward, screen, terminal, true, 0)
+    local state = {screen=screen, time=step}
+    local action_index = agent:perceive(reward, state, terminal, true, 0)
     local display_img = screen
     if opt.top_down and (opt.video ~= '' or opt.display) then
         pos_y, pos_x, dir = game_env:getPos()
