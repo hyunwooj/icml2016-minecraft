@@ -25,7 +25,7 @@ function MQN:build_model(args)
     local history = nn.Narrow(2, 1, T-1)(cnn_features)
     local history_flat = nn.View(-1):setNumInputDims(1)(history)
 
-    local reten = self:build_retention(args, history_flat, t)
+    local reten, stren = self:build_retention(args, history_flat, t)
 
     local key_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
     local val_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
@@ -52,7 +52,7 @@ function MQN:build_model(args)
 
     local mem_q = nn.Linear(args.n_hid_enc, args.hist_len-1)(out)
     local beh_q = nn.Linear(args.n_hid_enc, args.n_actions)(out)
-    return nn.gModule(input, {mem_q, beh_q, atten, reten})
+    return nn.gModule(input, {mem_q, beh_q, atten, reten, stren})
 end
 
 function MQN:build_retention(args, history_flat, t)
@@ -69,7 +69,7 @@ function MQN:build_retention(args, history_flat, t)
     S = nn.AddConstant(1)(nn.SoftPlus()(S))
 
     local reten = nn.Exp()(nn.CDivTable()({t, S}))
-    return reten
+    return reten, S
 end
 
 function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_dim, c0, h0, reten)
