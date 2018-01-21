@@ -523,7 +523,8 @@ end
 
 function nql:create_memory()
     local mem_args = {
-        mem_size = self.hist_len-1
+        mem_size = self.hist_len-1,
+        image_dims = self.image_dims,
     }
     return Memory(mem_args)
 end

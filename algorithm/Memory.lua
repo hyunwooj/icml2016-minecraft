@@ -5,21 +5,14 @@ function memory:__init(args)
     self.mem = {}
     self.times = {}
     self.mem_size = args.mem_size
+    self.image_dims = args.image_dims
+    self:reset()
 end
 
 function memory:concat(state)
     local frame = state.frame
     local time = state.time
-    -- Reset
-    if #self.mem == 0 then
-        for i = 1, self.mem_size do
-            rand_frame = torch.rand(unpack(frame:size():totable())):mul(127):byte()
-            table.insert(self.mem, rand_frame)
-            -- zero_frame = frame:clone():zero()
-            -- table.insert(self.mem, zero_frame)
-            table.insert(self.times, time:clone():zero())
-        end
-    end
+
     assert(#self.mem == self.mem_size, 'memory size error')
     assert(#self.times == self.mem_size, 'memory size error')
 
@@ -34,6 +27,14 @@ end
 function memory:reset()
     self.mem = {}
     self.times = {}
+    for i = 1, self.mem_size do
+        local m = torch.rand(unpack(self.image_dims)):mul(127):byte()
+        -- local m = torch.ByteTensor(unpack(self.image_dims)):zero()
+        table.insert(self.mem, m)
+
+        local time = torch.ByteTensor(1):zero()
+        table.insert(self.times, time)
+    end
 end
 
 function memory:replace_frame(state, idx)
