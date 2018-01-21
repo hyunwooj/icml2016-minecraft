@@ -4,15 +4,11 @@ local memory = torch.class('Memory')
 function memory:__init(args)
     self.mem = {}
     self.mem_size = args.mem_size
+    self.image_dims = args.image_dims
+    self:reset()
 end
 
 function memory:concat(frame)
-    -- Reset
-    if #self.mem == 0 then
-        for i = 1, self.mem_size do
-            table.insert(self.mem, frame:clone():zero())
-        end
-    end
     assert(#self.mem == self.mem_size, 'memory size error')
 
     local mem = torch.cat(self.mem, 1)
@@ -22,6 +18,10 @@ end
 
 function memory:reset()
     self.mem = {}
+    for i = 1, self.mem_size do
+        local m = torch.ByteTensor(unpack(self.image_dims)):zero()
+        table.insert(self.mem, m)
+    end
 end
 
 function memory:replace(frame, idx)

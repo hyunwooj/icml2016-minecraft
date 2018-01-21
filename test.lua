@@ -100,24 +100,31 @@ for iter=1,opt.num_play do
 
     while not terminal do
         step = step + 1
-        local action_index = agent:perceive(reward, screen, terminal, true, 0)
-        local display_img = screen
+
+        -- memory visualization
+        local mem_img = nil
         if opt.top_down and (opt.video ~= '' or opt.display) then
-            pos_y, pos_x, dir = game_env:getPos()
-            -- if original
-            -- py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
-            -- else
             local mem = py.eval(img_util.flip_left_right(agent.memory.mem))
             mem = torch.cat(mem, 3):permute(2, 3, 1)
             local size = {#agent.memory.mem * opt.img_size, opt.img_size}
-            local mem_img = py.eval(img_util.resize_img(mem, unpack(size)))
+            mem_img = py.eval(img_util.resize_img(mem, unpack(size)))
+        end
+
+        local action_index = agent:perceive(reward, screen, terminal, true, 0)
+
+        local display_img = screen
+        if opt.top_down and (opt.video ~= '' or opt.display) then
+            pos_y, pos_x, dir = game_env:getPos()
+            -- py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
             py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img)
-            -- endif original
+
             display_img = py.eval(py_ret[0]):permute(3, 1, 2)
         end
+
         if opt.video ~= '' then
             image.save(string.format("%s/%05d.png", video_dir, step-1), display_img)
         end
+
         if opt.display then
             win.window.size = qt.QSize{width=display_img:size(3), height=display_img:size(2)}
             image.display({image=display_img, win=win, saturate=false})
@@ -126,16 +133,29 @@ for iter=1,opt.num_play do
         screen, reward, terminal = game_env:step(game_actions[action_index], false)
         ep_r = ep_r + reward
     end
+
     if reward >= 1 then
         success = success + 1
     elseif reward <= -1 then
         fail = fail + 1
     end
+
+    -- memory visualization
+    local mem_img = nil
+    if opt.top_down and (opt.video ~= '' or opt.display) then
+        local mem = py.eval(img_util.flip_left_right(agent.memory.mem))
+        mem = torch.cat(mem, 3):permute(2, 3, 1)
+        local size = {#agent.memory.mem * opt.img_size, opt.img_size}
+        mem_img = py.eval(img_util.resize_img(mem, unpack(size)))
+    end
+
     local action_index = agent:perceive(reward, screen, terminal, true, 0)
+
     local display_img = screen
     if opt.top_down and (opt.video ~= '' or opt.display) then
         pos_y, pos_x, dir = game_env:getPos()
         py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
+        py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img)
         display_img = py.eval(py_ret[0]):permute(3, 1, 2)
     end
     if opt.video ~= '' then
