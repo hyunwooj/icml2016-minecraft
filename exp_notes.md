@@ -5,7 +5,7 @@
 
 - Using the existing reward for memory slot action is working but the diff and the avg retention reward is not working for some reasons.
 
-- Commit: aeed726, tag: reten-same-reward
+- Tag: reten-same-reward
 
 2018/01/17
 ==========
@@ -14,4 +14,4 @@
 
 - Exp: memory size 4, MQN, IMaze, success rate is 1.0
 
-- Commit: d283aa9, tag: shared-q
+- Tag: shared-q
