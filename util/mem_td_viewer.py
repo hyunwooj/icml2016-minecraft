@@ -39,9 +39,11 @@ class MemTopDownViewer(TopDownViewer):
 
         frame_w, frame_h, _ = cur_frame.shape
 
-        for i, (atten, reten, time) in enumerate(zip(mem_dbg['atten'],
-                                                     mem_dbg['reten'],
-                                                     mem_dbg['times'])):
+        for i, value in enumerate(zip(mem_dbg['atten'],
+                                      mem_dbg['reten'],
+                                      mem_dbg['stren'],
+                                      mem_dbg['times'])):
+            atten, reten, stren, time = value
             # Attention
             text = 'Atten: %.3f' % atten
             pos = (i * frame_w + 10, 2*frame_h + 0*font_size)
@@ -52,9 +54,14 @@ class MemTopDownViewer(TopDownViewer):
             pos = (i * frame_w + 10, 2*frame_h + 1*font_size)
             draw.text(pos, text, fill='white', font=font)
 
-            # Retention
-            text = 'Time : %d' % time
+            # Strength
+            text = 'Stren: %.3f' % stren
             pos = (i * frame_w + 10, 2*frame_h + 2*font_size)
+            draw.text(pos, text, fill='white', font=font)
+
+            # Time
+            text = 'Time : %d' % time
+            pos = (i * frame_w + 10, 2*frame_h + 3*font_size)
             draw.text(pos, text, fill='white', font=font)
 
 def create_mem_td_viewer():
