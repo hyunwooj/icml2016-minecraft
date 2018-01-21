@@ -370,7 +370,9 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         end
 
         local r = {beh=reward,
-                   mem=self.last_step.r.mem}
+                   mem=reward+reten_reward}
+                   -- mem=reward+self.last_step.r.mem}
+                   -- mem=reward}
         local s2 = state
         local t = terminal
         self.buffer:add(s, a, r, s2, t)
@@ -401,7 +403,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     end
     local reten_reward = 0
     if reten ~= nil then
-        table.insert(self.reten_history, reten_reward[1][mem_action])
+        table.insert(self.reten_history, reten[1][mem_action])
         reten_reward = reten - torch.mean(reten)
         reten_reward = reten_reward[1][mem_action]
     end
