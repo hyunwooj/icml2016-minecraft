@@ -370,9 +370,9 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         end
 
         local r = {beh=reward,
-                   mem=reward+reten_reward}
+                   -- mem=reward+reten_reward}
                    -- mem=reward+self.last_step.r.mem}
-                   -- mem=reward}
+                   mem=reward}
         local s2 = state
         local t = terminal
         self.buffer:add(s, a, r, s2, t)
