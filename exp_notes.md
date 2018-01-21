@@ -5,7 +5,7 @@
 
 - Using the existing reward for memory slot action is working but the diff and the avg retention reward is not working for some reasons.
 
-- Commit: aeed726, tag: reten-same
+- Commit: aeed726, tag: reten-same-reward
 
 2018/01/17
 ==========
