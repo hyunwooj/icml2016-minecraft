@@ -111,13 +111,15 @@ for iter=1,opt.num_play do
         end
 
         local state = {screen=screen, time=step}
-        local action_index, dbg = agent:perceive(reward, state, terminal, true, 0)
+        local action_index, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
+        local dbg = {time=step,
+                     reward=reward}
 
         local display_img = screen
         if opt.top_down and (opt.video ~= '' or opt.display) then
             pos_y, pos_x, dir = game_env:getPos()
             -- py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
-            py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img, dbg)
+            py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img, dbg, mem_dbg)
 
             display_img = py.eval(py_ret[0]):permute(3, 1, 2)
         end
@@ -151,13 +153,15 @@ for iter=1,opt.num_play do
     end
 
     local state = {screen=screen, time=step}
-    local action_index, dbg = agent:perceive(reward, state, terminal, true, 0)
+    local action_index, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
+    local dbg = {time=step,
+                 reward=reward}
 
     local display_img = screen
     if opt.top_down and (opt.video ~= '' or opt.display) then
         pos_y, pos_x, dir = game_env:getPos()
         -- py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
-        py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img, dbg)
+        py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img, dbg, mem_dbg)
         display_img = py.eval(py_ret[0]):permute(3, 1, 2)
     end
     if opt.video ~= '' then

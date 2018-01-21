@@ -453,6 +453,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
             atten = atten[1]:clone():float(),
             reten = reten[1]:clone():float(),
             -- stren = stren[1],
+            times = times[1]:clone():byte(),
         }
     end
 
