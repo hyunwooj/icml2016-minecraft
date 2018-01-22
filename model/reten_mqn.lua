@@ -11,6 +11,9 @@ function MQN:build_model(args)
     local t = nn.Identity()()
     table.insert(input, t)
 
+    local noise = nn.Identity()()
+    table.insert(input, noise)
+
     -- local hit = nn.Identity()()
     -- table.insert(input, hit)
 
@@ -30,6 +33,8 @@ function MQN:build_model(args)
     local key_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
     local val_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
     key_blocks = nn.View(-1, T-1, edim):setNumInputDims(2)(key_blocks)
+    key_blocks = nn.MemoryDrop()({key_blocks, reten, noise})
+
     val_blocks = nn.View(-1, T-1, edim):setNumInputDims(2)(val_blocks)
     local c0, h0 = unpack(init_states)
     local hid, o, atten = self:build_retrieval(args, key_blocks, val_blocks,

@@ -33,10 +33,13 @@ function Net:reset_init_states(batch_size)
     end
 end
 
-function Net:forward(x, t)
+function Net:forward(x, t, keep)
     local input = {x}
     if t ~= nil then
         table.insert(input, t)
+    end
+    if keep ~= nil then
+        table.insert(input, keep)
     end
     if self.recurrent then
         self:reset_init_states(x:size(1))

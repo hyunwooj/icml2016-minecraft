@@ -178,6 +178,8 @@ function nql:getQUpdate(args)
     term = args.term
     times = args.s.times
     times2 = args.s2.times
+    noise = args.s.noise
+    noise2 = args.s2.noise
 
     local beh_a = a % (self.n_actions+1)
     local mem_a = a / (self.n_actions+1)
@@ -197,7 +199,7 @@ function nql:getQUpdate(args)
 
     -- Compute max_a Q(s_2, a).
     target_q_net:evaluate()
-    local output2 = target_q_net:forward(s2, times2)
+    local output2 = target_q_net:forward(s2, times2, noise2)
     mem_q2_max = output2[1]:float():max(2)
     beh_q2_max = output2[2]:float():max(2)
 
@@ -217,7 +219,7 @@ function nql:getQUpdate(args)
 
     -- q = Q(s,a)
     self.network:training()
-    local output = self.network:forward(s, times)
+    local output = self.network:forward(s, times, noise)
     local mem_q_all = output[1]:float()
     local beh_q_all = output[2]:float()
     mem_q = torch.FloatTensor(mem_q_all:size(1))
@@ -353,11 +355,14 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     curState = curState:float():div(255)
     curState = unsqueeze(curState, 1)
     times = unsqueeze(times, 1)
+    local noise = torch.rand(1, self.hist_len-1)
+
     if self:use_gpu() then
         curState = curState:cuda()
         times = times:cuda()
+        noise = noise:cuda()
     end
-    local state = {frames=curState, time=times}
+    local state = {frames=curState, time=times, noise=noise}
 
     if self.last_step and not testing then
         local s = self.last_step.s
@@ -484,6 +489,7 @@ end
 
 function nql:greedy(state)
     local times = state.time
+    local noise = state.noise
     local state = state.frames
     -- Turn single state into minibatch.  Needed for convolutional nets.
     if state:dim() == 2 then
@@ -514,7 +520,7 @@ function nql:greedy(state)
     end
 
     self.network:evaluate()
-    local output = self.network:forward(state, times)
+    local output = self.network:forward(state, times, noise)
     mem_max_q, mem_action = pick_best(output[1]:totable()[1])
     max_q, beh_action = pick_best(output[2]:totable()[1])
     self.mem_v_avg = (1-self.stat_eps)*self.mem_v_avg + self.stat_eps*mem_max_q

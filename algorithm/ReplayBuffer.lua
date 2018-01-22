@@ -16,6 +16,8 @@ function buffer:__init(args)
     self.t = torch.ByteTensor(self.max_size)
     self.time = torch.ByteTensor(self.max_size, self.mem_size)
     self.time2 = torch.ByteTensor(self.max_size, self.mem_size)
+    self.noise = torch.FloatTensor(self.max_size, self.mem_size-1)
+    self.noise2 = torch.FloatTensor(self.max_size, self.mem_size-1)
 
     self.ptr = 1
     self.full = false
@@ -28,14 +30,18 @@ function buffer:__init(args)
     self.batch_t = torch.ByteTensor(self.batch_size)
     self.batch_time = torch.ByteTensor(self.batch_size, self.mem_size)
     self.batch_time2 = torch.ByteTensor(self.batch_size, self.mem_size)
+    self.batch_noise = torch.FloatTensor(self.batch_size, self.mem_size-1)
+    self.batch_noise2 = torch.FloatTensor(self.batch_size, self.mem_size-1)
 
 end
 
 function buffer:add(s, a, r, s2, t)
     local time = s.time
+    local noise = s.noise
     local s = s.frames
 
     local time2 = s2.time
+    local noise2 = s2.noise
     local s2 = s2.frames
 
     self.s[self.ptr]:copy(s:clone():mul(255):byte())
@@ -50,6 +56,8 @@ function buffer:add(s, a, r, s2, t)
     end
     self.time[self.ptr]:copy(time:clone():byte())
     self.time2[self.ptr]:copy(time2:clone():byte())
+    self.noise[self.ptr]:copy(noise:clone():float())
+    self.noise2[self.ptr]:copy(noise2:clone():float())
 
     self.ptr = self.ptr + 1
     if self.ptr > self.max_size then
@@ -77,6 +85,8 @@ function buffer:sample(batch_size)
         self.batch_t[batch_idx] = self.t[sample_idx]
         self.batch_time[batch_idx]:copy(self.time[sample_idx])
         self.batch_time2[batch_idx]:copy(self.time2[sample_idx])
+        self.batch_noise[batch_idx]:copy(self.noise[sample_idx])
+        self.batch_noise2[batch_idx]:copy(self.noise2[sample_idx])
     end
     s = self.batch_s:clone():float():div(255)
     a = self.batch_a:clone()
@@ -86,14 +96,18 @@ function buffer:sample(batch_size)
     t = self.batch_t:clone()
     time = self.batch_time:clone()
     time2 = self.batch_time2:clone()
+    noise = self.batch_noise:clone()
+    noise2 = self.batch_noise2:clone()
     if self:use_gpu() then
         s = s:cuda()
         s2 = s2:cuda()
         time = time:cuda()
         time2 = time2:cuda()
+        noise = noise:cuda()
+        noise2 = noise2:cuda()
     end
-    s = {frames=s, times=time}
-    s2 = {frames=s2, times=time2}
+    s = {frames=s, times=time, noise=noise}
+    s2 = {frames=s2, times=time2, noise=noise2}
     r = {mem=mem_r, beh=r}
     return s, a, r, s2, t
 end
