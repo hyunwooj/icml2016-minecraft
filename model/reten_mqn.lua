@@ -64,11 +64,28 @@ function MQN:build_retention(args, history_flat, t)
 
     local t = nn.CSubTable()({history_t, current_t})
 
+    -- SoftPlus
+    -- local S = nn.Linear(args.conv_dim, 1)(history_flat)
+    -- S = nn.View(-1, T-1, 1):setNumInputDims(2)(S)
+    -- S = nn.AddConstant(1)(nn.SoftPlus()(S))
+
+    -- local reten = nn.Exp()(nn.CDivTable()({t, S}))
+
+    -- ReLU
     local S = nn.Linear(args.conv_dim, 1)(history_flat)
     S = nn.View(-1, T-1, 1):setNumInputDims(2)(S)
-    S = nn.AddConstant(1)(nn.SoftPlus()(S))
+    S = nn.AddConstant(1)(nn.ReLU()(S))
 
     local reten = nn.Exp()(nn.CDivTable()({t, S}))
+
+    -- Sigmoid 1/S
+    -- local S_inv = nn.Linear(args.conv_dim, 1)(history_flat)
+    -- S_inv = nn.View(-1, T-1, 1):setNumInputDims(2)(S_inv)
+    -- S_inv = nn.Sigmoid(S_inv)
+    -- local S = nn.Power(-1)(S_inv)
+
+    -- local reten = nn.Exp()(nn.CMulTable({t, S_inv}))
+
     return reten, S
 end
 
