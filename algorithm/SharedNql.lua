@@ -363,16 +363,16 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         local s = self.last_step.s
         local a = self.last_step.a
 
-        local reten_reward
+        local reten_avg_reward
         if #self.reten_history == 0 then
-            reten_reward = 0
+            reten_avg_reward = 0
         else
-            reten_reward = 1 - (sum(unpack(self.reten_history)) / #self.reten_history)
+            reten_avg_reward = 1 - (sum(unpack(self.reten_history)) / #self.reten_history)
         end
 
         local r = {beh=reward,
-                   -- mem=reward+reten_reward}
-                   -- mem=reward+self.last_step.r.mem}
+                   -- mem=reward + (0.1 * reten_avg_reward)}
+                   -- mem=reward + (0.1 * self.last_step.r.mem)}
                    mem=reward}
         local s2 = state
         local t = terminal
@@ -402,11 +402,11 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         end
         self.memory:update_time(idxs, time_step)
     end
-    local reten_reward = 0
+    local reten_diff_reward = 0
     if reten ~= nil then
         table.insert(self.reten_history, reten[1][mem_action])
-        reten_reward = reten - torch.mean(reten)
-        reten_reward = reten_reward[1][mem_action]
+        reten_diff_reward = reten - torch.mean(reten)
+        reten_diff_reward = reten_diff_reward[1][mem_action]
     end
 
     -- self.transitions:add_recent_action(actionIndex)
@@ -429,7 +429,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     -- self.lastAction = actionIndex
     -- self.lastTerminal = terminal
     local action = (mem_action*(self.n_actions+1)) + beh_action
-    self.last_step = {s=state, a=action, r={mem=reten_reward}}
+    self.last_step = {s=state, a=action, r={mem=reten_diff_reward}}
 
     if terminal then
         self.memory:reset()
