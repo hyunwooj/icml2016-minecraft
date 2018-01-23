@@ -9,6 +9,8 @@
 
 - Not surprisingly, retention decreases exponentially. (Reten 1 at time 0, reten 0.37 at time 1 when stren 1.02)
 
+- Tag: reten-diff-reward
+
 2018/01/21
 ==========
 
