@@ -5,6 +5,8 @@
 
 - No-memory-reward (same) and diff-memory-reward (diff) work but avg-memory-reward (avg) does not.
 
+- Need to verify diff-memory-reward affects learning and makes the performance better.
+
 - Both ReLU and SoftPlus work but with memory size 4. Memory size 2 does not work.
 
 - Not surprisingly, retention decreases exponentially. (Reten 1 at time 0, reten 0.37 at time 1 when stren 1.02)
