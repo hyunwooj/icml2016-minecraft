@@ -11,6 +11,9 @@ function MQN:build_model(args)
     local t = nn.Identity()()
     table.insert(input, t)
 
+    local recall = nn.Identity()()
+    table.insert(input, recall)
+
     local noise = nn.Identity()()
     table.insert(input, noise)
 
@@ -28,7 +31,7 @@ function MQN:build_model(args)
     local history = nn.Narrow(2, 1, T-1)(cnn_features)
     local history_flat = nn.View(-1):setNumInputDims(1)(history)
 
-    local reten, stren = self:build_retention(args, history_flat, t)
+    local reten, stren = self:build_retention(args, history_flat, t, recall)
 
     local key_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
     local val_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
@@ -60,7 +63,7 @@ function MQN:build_model(args)
     return nn.gModule(input, {mem_q, beh_q, atten, reten, stren})
 end
 
-function MQN:build_retention(args, history_flat, t)
+function MQN:build_retention(args, history_flat, t, recall)
     local T = args.hist_len
 
     local history_t = nn.Narrow(2, 1, T-1)(t)
@@ -68,6 +71,12 @@ function MQN:build_retention(args, history_flat, t)
     current_t = nn.ExpandAs()({history_t, current_t})
 
     local t = nn.CSubTable()({history_t, current_t})
+
+    local sigma = nn.Linear(args.conv_dim, 1)(history_flat)
+    sigma = nn.View(-1, T-1, 1):setNumInputDims(2)(sigma)
+    sigma = nn.Log()(nn.AddConstant(1)(nn.Sigmoid()(sigma)))
+    sigma = nn.CMulTable()({recall, sigma})
+    sigma = nn.Exp()(sigma)
 
     -- SoftPlus
     -- local S = nn.Linear(args.conv_dim, 1)(history_flat)
@@ -80,6 +89,8 @@ function MQN:build_retention(args, history_flat, t)
     local S = nn.Linear(args.conv_dim, 1)(history_flat)
     S = nn.View(-1, T-1, 1):setNumInputDims(2)(S)
     S = nn.AddConstant(1)(nn.ReLU()(S))
+
+    S = nn.CMulTable()({S, sigma})
 
     local reten = nn.Exp()(nn.CDivTable()({t, S}))
 
