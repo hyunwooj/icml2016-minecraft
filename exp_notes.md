@@ -1,3 +1,14 @@
+2018/01/23
+==========
+
+- Memory initialization is crucial (Max value 31 failed, 127 succeeded).
+
+- No-memory-reward (same) and diff-memory-reward (diff) work but avg-memory-reward (avg) does not.
+
+- Both ReLU and SoftPlus work but with memory size 4. Memory size 2 does not work.
+
+- Not surprisingly, retention decreases exponentially. (Reten 1 at time 0, reten 0.37 at time 1 when stren 1.02)
+
 2018/01/21
 ==========
 
