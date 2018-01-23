@@ -28,7 +28,7 @@ function memory:reset()
     self.mem = {}
     self.times = {}
     for i = 1, self.mem_size do
-        local m = torch.rand(unpack(self.image_dims)):mul(31):byte()
+        local m = torch.rand(unpack(self.image_dims)):mul(127):byte()
         -- local m = torch.ByteTensor(unpack(self.image_dims)):zero()
         table.insert(self.mem, m)
 
