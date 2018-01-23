@@ -1,5 +1,5 @@
 2018/01/23
-==========
+----------
 
 - Memory initialization is crucial (Max value 31 failed, 127 succeeded).
 
@@ -13,8 +13,22 @@
 
 - Tag: reten-diff-reward
 
+| Model           | Succ. rate |
+|-----------------|------------|
+| same-softplus-3 | 0.0        |
+| same-softplus-5 | 1.0        |
+| same-relu-3     | 0.0        |
+| same-relu-5     | 1.0        |
+| diff-softplus-3 | 0.0        |
+| diff-softplus-5 | 1.0        |
+| diff-relu-3     | 0.033      |
+| diff-relu-5     | 1.0        |
+| avg-softplus-3  | 0.0        |
+| avg-softplus-5  | 0.2        |
+
+
 2018/01/21
-==========
+----------
 
 - Retention is used with attention at memory read.
 
@@ -23,7 +37,7 @@
 - Tag: reten-same-reward
 
 2018/01/17
-==========
+----------
 
 - Demonstrated that the agent can choose which memory slot to replace with the current frame by adding another output layer that approximates tthe action-value function for memory slot action.
 

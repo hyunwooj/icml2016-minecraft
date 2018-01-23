@@ -167,7 +167,9 @@ end
 
 function nql:getQUpdate(args)
     local s, a, r, s2, term, delta
-    local time1, time2
+    local times, times2
+    local noise, noise2
+    local recall, recall2
     local q, q2, q2_max
 
     s = args.s.frames
@@ -178,6 +180,8 @@ function nql:getQUpdate(args)
     term = args.term
     times = args.s.times
     times2 = args.s2.times
+    recall = args.s.recall
+    recall2 = args.s2.recall
     noise = args.s.noise
     noise2 = args.s2.noise
 
@@ -199,7 +203,7 @@ function nql:getQUpdate(args)
 
     -- Compute max_a Q(s_2, a).
     target_q_net:evaluate()
-    local output2 = target_q_net:forward(s2, times2, noise2)
+    local output2 = target_q_net:forward(s2, times2, recall2, noise2)
     mem_q2_max = output2[1]:float():max(2)
     beh_q2_max = output2[2]:float():max(2)
 
@@ -219,7 +223,7 @@ function nql:getQUpdate(args)
 
     -- q = Q(s,a)
     self.network:training()
-    local output = self.network:forward(s, times, noise)
+    local output = self.network:forward(s, times, recall, noise)
     local mem_q_all = output[1]:float()
     local beh_q_all = output[2]:float()
     mem_q = torch.FloatTensor(mem_q_all:size(1))
@@ -351,18 +355,20 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
 
     --curState= self.transitions:get_recent()
     --curState = curState:resize(1, unpack(self.input_dims))
-    curState, times = self.memory:concat({frame=frame, time=time_step})
+    curState, times, recalls = self.memory:concat({frame=frame, time=time_step})
     curState = curState:float():div(255)
     curState = unsqueeze(curState, 1)
     times = unsqueeze(times, 1)
+    recalls = unsqueeze(recalls, 1)
     local noise = torch.rand(1, self.hist_len-1)
 
     if self:use_gpu() then
         curState = curState:cuda()
         times = times:cuda()
+        recalls = recalls:cuda()
         noise = noise:cuda()
     end
-    local state = {frames=curState, time=times, noise=noise}
+    local state = {frames=curState, time=times, recall=recalls, noise=noise}
 
     if self.last_step and not testing then
         local s = self.last_step.s
@@ -405,7 +411,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
                 table.insert(idxs, idx)
             end
         end
-        self.memory:update_time(idxs, time_step)
+        self.memory:recall(idxs, time_step)
     end
     local reten_diff_reward = 0
     if reten ~= nil then
@@ -490,6 +496,7 @@ end
 function nql:greedy(state)
     local times = state.time
     local noise = state.noise
+    local recall = state.recall
     local state = state.frames
     -- Turn single state into minibatch.  Needed for convolutional nets.
     if state:dim() == 2 then
@@ -520,7 +527,7 @@ function nql:greedy(state)
     end
 
     self.network:evaluate()
-    local output = self.network:forward(state, times, noise)
+    local output = self.network:forward(state, times, recall, noise)
     mem_max_q, mem_action = pick_best(output[1]:totable()[1])
     max_q, beh_action = pick_best(output[2]:totable()[1])
     self.mem_v_avg = (1-self.stat_eps)*self.mem_v_avg + self.stat_eps*mem_max_q
