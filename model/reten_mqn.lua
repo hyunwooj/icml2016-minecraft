@@ -31,7 +31,7 @@ function MQN:build_model(args)
     local history = nn.Narrow(2, 1, T-1)(cnn_features)
     local history_flat = nn.View(-1):setNumInputDims(1)(history)
 
-    local reten, stren = self:build_retention(args, history_flat, t, recall)
+    local reten, stren, sigma, comps = self:build_retention(args, history_flat, t, recall)
 
     local key_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
     local val_blocks = nn.Linear(args.conv_dim, edim)(history_flat)
@@ -60,7 +60,7 @@ function MQN:build_model(args)
 
     local mem_q = nn.Linear(args.n_hid_enc, args.hist_len-1)(out)
     local beh_q = nn.Linear(args.n_hid_enc, args.n_actions)(out)
-    return nn.gModule(input, {mem_q, beh_q, atten, reten, stren})
+    return nn.gModule(input, {mem_q, beh_q, atten, reten, stren, sigma, comps})
 end
 
 function MQN:build_retention(args, history_flat, t, recall)
@@ -74,9 +74,7 @@ function MQN:build_retention(args, history_flat, t, recall)
 
     local sigma = nn.Linear(args.conv_dim, 1)(history_flat)
     sigma = nn.View(-1, T-1, 1):setNumInputDims(2)(sigma)
-    sigma = nn.Log()(nn.AddConstant(1)(nn.Sigmoid()(sigma)))
-    sigma = nn.CMulTable()({recall, sigma})
-    sigma = nn.Exp()(sigma)
+    sigma = nn.Sigmoid()(sigma)
 
     -- SoftPlus
     -- local S = nn.Linear(args.conv_dim, 1)(history_flat)
@@ -90,9 +88,12 @@ function MQN:build_retention(args, history_flat, t, recall)
     S = nn.View(-1, T-1, 1):setNumInputDims(2)(S)
     S = nn.AddConstant(1)(nn.ReLU()(S))
 
-    S = nn.CMulTable()({S, sigma})
+    local compound = nn.Log()(nn.AddConstant(1)(sigma))
+    compound = nn.CMulTable()({recall, compound})
+    compound = nn.Exp()(compound)
+    compound = nn.CMulTable()({S, compound})
 
-    local reten = nn.Exp()(nn.CDivTable()({t, S}))
+    local reten = nn.Exp()(nn.CDivTable()({t, compound}))
 
     -- Sigmoid 1/S
     -- local S_inv = nn.Linear(args.conv_dim, 1)(history_flat)
@@ -102,7 +103,7 @@ function MQN:build_retention(args, history_flat, t, recall)
 
     -- local reten = nn.Exp()(nn.CMulTable({t, S_inv}))
 
-    return reten, S
+    return reten, S, sigma, compound
 end
 
 function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_dim, c0, h0, reten)

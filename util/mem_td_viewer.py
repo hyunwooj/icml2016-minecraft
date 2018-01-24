@@ -38,31 +38,50 @@ class MemTopDownViewer(TopDownViewer):
     def _draw_mem_dbg(self, side_by_side, cur_frame, mem_dbg, font, font_size, draw):
 
         frame_w, frame_h, _ = cur_frame.shape
+        mem_size = len(mem_dbg['atten'])
+        pos_y = 0
 
-        for i, value in enumerate(zip(mem_dbg['atten'],
-                                      mem_dbg['reten'],
-                                      mem_dbg['stren'],
-                                      mem_dbg['times'])):
-            atten, reten, stren, time = value
+        for i in range(mem_size):
             # Attention
-            text = 'Atten: %.3f' % atten
-            pos = (i * frame_w + 10, 2*frame_h + 0*font_size)
+            text = 'Atten: %.3f' % mem_dbg['atten'][i]
+            pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
             draw.text(pos, text, fill='white', font=font)
+            pos_y += 1
 
             # Retention
-            text = 'Reten: %.3f' % reten
-            pos = (i * frame_w + 10, 2*frame_h + 1*font_size)
+            text = 'Reten: %.3f' % mem_dbg['reten'][i]
+            pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
             draw.text(pos, text, fill='white', font=font)
+            pos_y += 1
 
-            # Strength
-            text = 'Stren: %.3f' % stren
-            pos = (i * frame_w + 10, 2*frame_h + 2*font_size)
-            draw.text(pos, text, fill='white', font=font)
+            if mem_dbg['stren'] is not None:
+                # Strength
+                text = 'Stren: %.3f' % mem_dbg['stren'][i]
+                pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
+                draw.text(pos, text, fill='white', font=font)
+                pos_y += 1
+
+            if mem_dbg['sigma'] is not None:
+                # Strength
+                text = 'Sigma: %.3f' % mem_dbg['sigma'][i]
+                pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
+                draw.text(pos, text, fill='white', font=font)
+                pos_y += 1
+
+            if mem_dbg['comps'] is not None:
+                # Compound Strength
+                text = 'CompS: %.3f' % mem_dbg['comps'][i]
+                pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
+                draw.text(pos, text, fill='white', font=font)
+                pos_y += 1
 
             # Time
-            text = 'Time : %d' % time
-            pos = (i * frame_w + 10, 2*frame_h + 3*font_size)
+            text = 'Time : %d' % mem_dbg['times'][i]
+            pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
             draw.text(pos, text, fill='white', font=font)
+            pos_y += 1
+
+            pos_y = 0
 
 def create_mem_td_viewer():
     return MemTopDownViewer()
