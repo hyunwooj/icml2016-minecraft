@@ -292,7 +292,7 @@ function nql:qLearnMinibatch()
     local zero_grad = targets.mem:clone():zero()
     self.network:backward({s.frames, s.times},
                           {targets.mem, targets.beh,
-                           zero_grad, zero_grad, zero_grad})
+                           zero_grad, zero_grad, zero_grad, zero_grad, zero_grad})
 
     -- compute linearly annealed learning rate
     local t = math.max(0, self.numSteps - self.learn_start)
@@ -390,12 +390,14 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     local beh_action = 1
     local mem_action = 1
     local atten, reten, stren
+    local sigma, comps
     local output
     if not terminal then
         -- actionIndex = self:eGreedy(curState, testing_ep, testing)
         output = self:eGreedy(state, testing_ep, testing)
         mem_action, beh_action = output[1], output[2]
         atten, reten, stren = output[3], output[4], output[5]
+        sigma, comps = output[6], output[7]
     end
 
     if atten ~= nil then
@@ -459,6 +461,8 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
             atten = atten[1]:clone():float(),
             reten = reten[1]:clone():float(),
             stren = stren[1]:clone():float(),
+            sigma = sigma[1]:clone():float(),
+            comps = comps[1]:clone():float(),
             times = times[1]:clone():byte(),
         }
     end
@@ -527,11 +531,10 @@ function nql:greedy(state)
     self.mem_v_avg = (1-self.stat_eps)*self.mem_v_avg + self.stat_eps*mem_max_q
     self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*max_q
 
-    local atten = output[3]
-    local reten = output[4]
-    local stren = output[5]
+    local atten, reten, stren = output[3], output[4], output[5]
+    local sigma, comps = output[6], output[7]
 
-    return {mem_action, beh_action, atten, reten, stren}
+    return {mem_action, beh_action, atten, reten, stren, sigma, comps}
 end
 
 function nql:report()
