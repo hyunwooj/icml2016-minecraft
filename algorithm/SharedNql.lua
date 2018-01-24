@@ -465,11 +465,17 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         dbg = {
             atten = atten[1]:clone():float(),
             reten = reten[1]:clone():float(),
-            stren = stren[1]:clone():float(),
-            sigma = sigma[1]:clone():float(),
-            comps = comps[1]:clone():float(),
             times = times[1]:clone():byte(),
         }
+        if stren then
+            dbg.stren = stren[1]:clone():float()
+        end
+        if sigma then
+            dbg.sigma = sigma[1]:clone():float()
+        end
+        if comps then
+            dbg.comps = comps[1]:clone():float()
+        end
     end
 
     if not terminal then

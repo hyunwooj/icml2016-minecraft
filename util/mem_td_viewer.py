@@ -54,21 +54,21 @@ class MemTopDownViewer(TopDownViewer):
             draw.text(pos, text, fill='white', font=font)
             pos_y += 1
 
-            if mem_dbg['stren'] is not None:
+            if mem_dbg.get('stren') is not None:
                 # Strength
                 text = 'Stren: %.3f' % mem_dbg['stren'][i]
                 pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
                 draw.text(pos, text, fill='white', font=font)
                 pos_y += 1
 
-            if mem_dbg['sigma'] is not None:
+            if mem_dbg.get('sigma') is not None:
                 # Strength
                 text = 'Sigma: %.3f' % mem_dbg['sigma'][i]
                 pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
                 draw.text(pos, text, fill='white', font=font)
                 pos_y += 1
 
-            if mem_dbg['comps'] is not None:
+            if mem_dbg.get('comps') is not None:
                 # Compound Strength
                 text = 'CompS: %.3f' % mem_dbg['comps'][i]
                 pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
