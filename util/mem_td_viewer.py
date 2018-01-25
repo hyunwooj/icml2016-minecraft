@@ -29,7 +29,7 @@ class MemTopDownViewer(TopDownViewer):
         if mem_dbg:
             self._draw_mem_dbg(side_by_side, cur_frame, mem_dbg, font, font_size, draw)
 
-        draw.text((5, 5), 'Time:   %d' % dbg['time'], fill='white', font=font)
+        draw.text((5, 5), 'Time:   %.0f' % dbg['time'], fill='white', font=font)
         draw.text((5, 25), 'Reward: %.2f' % dbg['reward'], fill='white', font=font)
 
         full_mem_img = np.asarray(side_by_side)
@@ -76,7 +76,7 @@ class MemTopDownViewer(TopDownViewer):
                 pos_y += 1
 
             # Time
-            text = 'Time : %d' % mem_dbg['times'][i]
+            text = 'Time : %.0f' % mem_dbg['times'][i]
             pos = (i * frame_w + 10, 2*frame_h + pos_y*font_size)
             draw.text(pos, text, fill='white', font=font)
             pos_y += 1
