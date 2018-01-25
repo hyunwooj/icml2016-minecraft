@@ -120,6 +120,18 @@ function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_di
     local atten = nn.SparseMax()(key_out2dim)
     atten = nn.CAddTable()({atten, reten})
     atten = nn.Normalize(1)(atten)
+
+    -- -- B x T-1 x edim
+    -- local expanded_hid = nn.ExpandAs()({key_blocks_t, hid})
+    -- -- B x T-1 x 1
+    -- local unsqueezed_reten = nn.View(-1, T-1, 1)(reten)
+
+    -- local concated = nn.JoinTable(3)({expanded_hid, key_blocks_t, unsqueezed_reten})
+    -- local atten_input = nn.View(-1, edim + edim + 1)(concated)
+    -- local atten_hidden = nn.ReLU()(nn.Linear(edim + edim + 1, edim)(atten_input))
+    -- local atten_out = nn.Linear(edim, 1)(atten_hidden)
+    -- local atten = nn.SparseMax()(nn.View(-1, T-1)(atten_out))
+
     local probs3dim = nn.View(1, -1):setNumInputDims(1)(atten)
 
     local MM_val = nn.MM(false, false)
