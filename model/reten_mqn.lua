@@ -75,6 +75,7 @@ function MQN:build_retention(args, history_flat, t, recall)
     local sigma = nn.Linear(args.conv_dim, 1)(history_flat)
     sigma = nn.View(-1, T-1, 1):setNumInputDims(2)(sigma)
     sigma = nn.Sigmoid()(sigma)
+    sigma = nn.MulConstant(0.1)(sigma)
 
     -- SoftPlus
     -- local S = nn.Linear(args.conv_dim, 1)(history_flat)

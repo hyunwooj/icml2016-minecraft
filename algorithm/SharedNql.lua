@@ -327,7 +327,7 @@ end
 -- Sample a mini-batch of transition and perform gradient descent
 -- Choose one of the actions
 function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
-    local time_step = rawstate.screen.new(1):fill(rawstate.time)
+    local time_step = torch.FloatTensor(1):fill(rawstate.time)
     local rawstate = rawstate.screen
     -- Preprocess state (will be set to nil if terminal)
     local frame = self:preprocess(rawstate)
@@ -465,7 +465,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         dbg = {
             atten = atten[1]:clone():float(),
             reten = reten[1]:clone():float(),
-            times = times[1]:clone():byte(),
+            times = times[1]:clone():float(),
         }
         if stren then
             dbg.stren = stren[1]:clone():float()
