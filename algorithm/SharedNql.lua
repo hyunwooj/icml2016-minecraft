@@ -402,7 +402,8 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
 
     if atten ~= nil then
         local idxs = {}
-        local recalled = atten:gt(torch.mean(atten)):totable()[1]
+        -- local recalled = atten:gt(torch.mean(atten)):totable()[1]
+        local recalled = atten:gt(0.2):totable()[1]
         for idx, val in pairs(recalled) do
             if val == 1 then
                 table.insert(idxs, idx)
