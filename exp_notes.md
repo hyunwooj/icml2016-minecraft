@@ -1,3 +1,16 @@
+2018/01/26
+----------
+
+- Added σ to make memory stronger (S <- S(1 + 0.1·σ)^n) => works
+
+- Multplying α and γ instead of adding them works as well.
+
+- Modified recall rule. Prev: memory attended more than the average are recalled. Now: memory attended more than the threshold (τ= 0.2).
+
+- Found out recall threshold makes training faster.
+
+- Tried the new attention mechanism: α = NN(γ, key memory, context) => works but converges very slowly.
+
 2018/01/23
 ----------
 
