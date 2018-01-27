@@ -114,11 +114,13 @@ function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_di
     local key_out = MM_key({hid, key_blocks_t})
     local key_out2dim = nn.View(-1):setNumInputDims(2)(key_out)
 
+    -- Original
     -- local P = nn.SparseMax()(key_out2dim)
     -- local probs3dim = nn.View(1, -1):setNumInputDims(1)(P)
 
+    -- Multiplication
     local atten = nn.SparseMax()(key_out2dim)
-    atten = nn.CAddTable()({atten, reten})
+    atten = nn.CMulTable()({atten, reten})
     atten = nn.Normalize(1)(atten)
 
     -- -- B x T-1 x edim
