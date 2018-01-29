@@ -1,0 +1,41 @@
+#!/bin/bash
+
+if [ -z "$2" ]
+  then echo "Usage: [model_name] [gpu]"; exit 0
+fi
+env="LMaze"
+test_env="LMazeTest"
+name=$1
+gpu=$2
+# hist_len=12
+
+if [ $name = "dqn" ]
+then
+  lr=0.00025
+  test_hist_len=12
+else
+  lr=0.0005
+  test_hist_len=50
+fi
+
+if [ "$agent" != "NeuralQLearner" ] && [ "$agent" != "Nql" ]
+then
+  test_hist_len=$hist_len
+fi
+
+network="$name"
+seed=1
+steps=15000000
+replay_memory=50000
+state_dim=3072
+batch_size=32
+mkdir -p save/${env}
+if [ -z $save_name ]
+then
+  save_name="${env}/${name}_${hist_len}"
+fi
+agent_params="lr=$lr,hist_len=$hist_len,replay_memory=$replay_memory,network="\"$network\"",state_dim=$state_dim,minibatch_size=$batch_size"
+args="-agent $agent -save_name $save_name -env $env -agent_params $agent_params -steps $steps -gpu $gpu -seed $seed -test_env $test_env -test_hist_len $test_hist_len -ipaddr $ipaddr"
+echo $args
+
+th train.lua $args
