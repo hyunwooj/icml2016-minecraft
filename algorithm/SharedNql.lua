@@ -422,7 +422,8 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
 
     -- self.transitions:add_recent_action(actionIndex)
     -- self.memory:enqueue(state)
-    self.memory:replace_frame({frame=frame, time=time_step}, mem_action)
+    -- self.memory:replace_frame({frame=frame, time=time_step}, mem_action)
+    self.memory:remove_and_append(mem_action, {frame=frame, time=time_step})
 
     --Do some Q-learning updates
     if self.numSteps > self.learn_start and not testing and
@@ -494,8 +495,8 @@ function nql:eGreedy(state, testing_ep, testing)
     self.ep = testing_ep or (self.ep_end +
                 math.max(0, (self.ep_start - self.ep_end) * (self.ep_endt -
                 math.max(0, self.numSteps - self.learn_start))/self.ep_endt))
-    -- self.learn_start = 100
-    -- self.ep = 0
+    self.learn_start = 100
+    self.ep = 0
     -- Epsilon greedy
     if torch.uniform() < self.ep then
         mem_action = torch.random(1, self.hist_len-1)

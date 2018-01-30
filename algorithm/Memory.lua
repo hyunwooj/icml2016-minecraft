@@ -34,8 +34,8 @@ function memory:reset()
     self.times = {}
     self.recalls = {}
     for i = 1, self.mem_size do
-        local m = torch.rand(unpack(self.image_dims)):mul(127):byte()
-        -- local m = torch.ByteTensor(unpack(self.image_dims)):zero()
+        -- local m = torch.rand(unpack(self.image_dims)):mul(127):byte()
+        local m = torch.ByteTensor(unpack(self.image_dims)):zero()
         table.insert(self.mem, m)
 
         local time = torch.FloatTensor(1):fill(-100)
@@ -50,6 +50,17 @@ function memory:replace_frame(state, idx)
     self.mem[idx] = state.frame:clone()
     self.times[idx] = state.time:clone()
     self.recalls[idx] = self.recalls[idx]:clone():zero()
+end
+
+function memory:remove_and_append(idx, state)
+    table.remove(self.mem, idx)
+    table.insert(self.mem, state.frame:clone())
+
+    table.remove(self.times, idx)
+    table.insert(self.times, state.time:clone())
+
+    table.remove(self.recalls, idx)
+    table.insert(self.recalls, self.recalls[1]:clone():zero())
 end
 
 function memory:recall(idxs, time_step)
