@@ -391,6 +391,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
     local mem_action = 1
     local atten, reten, stren
     local sigma, comps
+    local mem_q, beh_q
     local output
     if not terminal then
         -- actionIndex = self:eGreedy(curState, testing_ep, testing)
@@ -398,6 +399,7 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         mem_action, beh_action = output[1], output[2]
         atten, reten, stren = output[3], output[4], output[5]
         sigma, comps = output[6], output[7]
+        mem_q, beh_q = output[8], output[9]
     end
 
     if atten ~= nil then
@@ -456,28 +458,34 @@ function nql:perceive(reward, rawstate, terminal, testing, testing_ep)
         end
     end
 
-    local dbg = nil
+    local dbg = {}
+    if mem_q ~= nil then
+        dbg.mem_q = mem_q[1]:clone():float()
+        dbg.beh_q = beh_q[1]:clone():float()
+    end
+
+    local mem_dbg = nil
     if atten ~= nil then
-        dbg = {
+        mem_dbg = {
             atten = atten[1]:clone():float(),
             reten = reten[1]:clone():float(),
             times = times[1]:clone():float(),
         }
         if stren then
-            dbg.stren = stren[1]:clone():float()
+            mem_dbg.stren = stren[1]:clone():float()
         end
         if sigma then
-            dbg.sigma = sigma[1]:clone():float()
+            mem_dbg.sigma = sigma[1]:clone():float()
         end
         if comps then
-            dbg.comps = comps[1]:clone():float()
+            mem_dbg.comps = comps[1]:clone():float()
         end
     end
 
     if not terminal then
-        return beh_action, dbg
+        return beh_action, dbg, mem_dbg
     else
-        return 0, dbg
+        return 0, dbg, mem_dbg
     end
 end
 
@@ -538,10 +546,11 @@ function nql:greedy(state)
     self.mem_v_avg = (1-self.stat_eps)*self.mem_v_avg + self.stat_eps*mem_max_q
     self.v_avg = (1-self.stat_eps)*self.v_avg + self.stat_eps*max_q
 
+    local mem_q, beh_q = output[1], output[2]
     local atten, reten, stren = output[3], output[4], output[5]
     local sigma, comps = output[6], output[7]
 
-    return {mem_action, beh_action, atten, reten, stren, sigma, comps}
+    return {mem_action, beh_action, atten, reten, stren, sigma, comps, mem_q, beh_q}
 end
 
 function nql:report()

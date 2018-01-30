@@ -111,9 +111,9 @@ for iter=1,opt.num_play do
         end
 
         local state = {screen=screen, time=step}
-        local action_index, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
-        local dbg = {time=step,
-                     reward=reward}
+        local action_index, dbg, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
+        dbg.time = step
+        dbg.reward = reward
 
         local display_img = screen
         if opt.top_down and (opt.video ~= '' or opt.display) then
@@ -153,9 +153,9 @@ for iter=1,opt.num_play do
     end
 
     local state = {screen=screen, time=step}
-    local action_index, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
-    local dbg = {time=step,
-                 reward=reward}
+    local action_index, dbg, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
+    dbg.time = step
+    dbg.reward = reward
 
     local display_img = screen
     if opt.top_down and (opt.video ~= '' or opt.display) then

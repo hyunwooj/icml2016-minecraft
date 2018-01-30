@@ -12,6 +12,9 @@ class MemTopDownViewer(TopDownViewer):
         font_size = 20
         font = ImageFont.truetype(font_path, font_size)
 
+        font_bold_path = "/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf"
+        font_bold = ImageFont.truetype(font_bold_path, font_size)
+
         h = full_img.shape[0] + mem_img.shape[0]
         if mem_dbg:
             h += font_size * len(mem_dbg)
@@ -32,8 +35,38 @@ class MemTopDownViewer(TopDownViewer):
         draw.text((5, 5), 'Time:   %.0f' % dbg['time'], fill='white', font=font)
         draw.text((5, 25), 'Reward: %.2f' % dbg['reward'], fill='white', font=font)
 
+        if dbg.get('beh_q') is not None:
+            pos = (5 + full_img.shape[1], 5)
+            self._draw_beh_q_values(dbg['beh_q'], pos, font, font_bold, font_size, draw)
+
+        if dbg.get('mem_q') is not None:
+            pos = (5 + full_img.shape[1], 5 + 7 * font_size)
+            self._draw_mem_q_values(dbg['mem_q'], pos, font, font_bold, font_size, draw)
+
         full_mem_img = np.asarray(side_by_side)
         return full_mem_img, td_img, cur_img
+
+    def _draw_beh_q_values(self, beh_q, pos, font, font_bold, font_size, draw):
+        x, y = pos
+        labels = ['LR', 'LL', 'LU', 'LD', 'FD', 'BD']
+
+        assert(len(labels) == len(beh_q))
+        max_beh = np.argmax(beh_q)
+
+        for i, (label, value) in enumerate(zip(labels, beh_q)):
+            f = font_bold if i == max_beh else font
+            draw.text((x, y + i * font_size), '%s: %.3f' % (label, value),
+                      fill='white', font=f)
+
+    def _draw_mem_q_values(self, mem_q, pos, font, font_bold, font_size, draw):
+        x, y = pos
+        max_mem = np.argmax(mem_q)
+
+        for i, value in enumerate(mem_q):
+            f = font_bold if i == max_mem else font
+            draw.text((x, y + i * font_size), '%d: %.3f' % (i, value),
+                      fill='white', font=f)
+
 
     def _draw_mem_dbg(self, side_by_side, cur_frame, mem_dbg, font, font_size, draw):
 
