@@ -468,8 +468,8 @@ function nql:eGreedy(state, testing_ep, testing)
     self.ep = testing_ep or (self.ep_end +
                 math.max(0, (self.ep_start - self.ep_end) * (self.ep_endt -
                 math.max(0, self.numSteps - self.learn_start))/self.ep_endt))
-    self.learn_start = 100
-    self.ep = 0
+    -- self.learn_start = 100
+    -- self.ep = 0
     -- Epsilon greedy
     if torch.uniform() < self.ep then
         mem_action = torch.random(1, self.lt_mem_size)
