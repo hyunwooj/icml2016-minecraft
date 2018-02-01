@@ -273,10 +273,11 @@ function nql:qLearnMinibatch()
     self.dw:zero()
 
     -- get new gradient
-    local zero_grad = targets.mem:clone():zero()
+    local zero_lt = targets.mem.new(self.minibatch_size, self.lt_mem_size):zero()
+    local zero_st = targets.mem.new(self.minibatch_size, self.st_mem_size):zero()
     self.network:backward({s.frames, s.times},
                           {targets.mem, targets.beh,
-                           zero_grad, zero_grad, zero_grad, zero_grad, zero_grad})
+                           zero_lt, zero_lt, zero_lt, zero_lt, zero_lt, zero_st})
 
     -- compute linearly annealed learning rate
     local t = math.max(0, self.numSteps - self.learn_start)
