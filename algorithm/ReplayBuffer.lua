@@ -5,33 +5,34 @@ function buffer:__init(args)
     self.max_size = args.max_size
     self.frame_dim = args.frame_dim
     self.mem_size = args.mem_size
+    self.lt_mem_size = args.lt_mem_size
     self.batch_size = args.batch_size
     self.gpu = args.gpu
 
-    self.s = torch.ByteTensor(self.max_size, self.mem_size*self.frame_dim)
+    self.s = torch.ByteTensor(self.max_size, (self.mem_size+1)*self.frame_dim)
     self.a = torch.ByteTensor(self.max_size)
     self.mem_r = torch.FloatTensor(self.max_size)
     self.r = torch.FloatTensor(self.max_size)
-    self.s2 = torch.ByteTensor(self.max_size, self.mem_size*self.frame_dim)
+    self.s2 = torch.ByteTensor(self.max_size, (self.mem_size+1)*self.frame_dim)
     self.t = torch.ByteTensor(self.max_size)
-    self.time = torch.FloatTensor(self.max_size, self.mem_size)
-    self.time2 = torch.FloatTensor(self.max_size, self.mem_size)
-    self.recall = torch.ByteTensor(self.max_size, self.mem_size-1)
-    self.recall2 = torch.ByteTensor(self.max_size, self.mem_size-1)
+    self.time = torch.FloatTensor(self.max_size, self.lt_mem_size+1)
+    self.time2 = torch.FloatTensor(self.max_size, self.lt_mem_size+1)
+    self.recall = torch.ByteTensor(self.max_size, self.lt_mem_size)
+    self.recall2 = torch.ByteTensor(self.max_size, self.lt_mem_size)
 
     self.ptr = 1
     self.full = false
 
-    self.batch_s = torch.ByteTensor(self.batch_size, self.mem_size*self.frame_dim)
+    self.batch_s = torch.ByteTensor(self.batch_size, (self.mem_size+1)*self.frame_dim)
     self.batch_a = torch.ByteTensor(self.batch_size)
     self.batch_mem_r = torch.FloatTensor(self.batch_size)
     self.batch_r = torch.FloatTensor(self.batch_size)
-    self.batch_s2 = torch.ByteTensor(self.batch_size, self.mem_size*self.frame_dim)
+    self.batch_s2 = torch.ByteTensor(self.batch_size, (self.mem_size+1)*self.frame_dim)
     self.batch_t = torch.ByteTensor(self.batch_size)
-    self.batch_time = torch.FloatTensor(self.batch_size, self.mem_size)
-    self.batch_time2 = torch.FloatTensor(self.batch_size, self.mem_size)
-    self.batch_recall = torch.ByteTensor(self.batch_size, self.mem_size-1)
-    self.batch_recall2 = torch.ByteTensor(self.batch_size, self.mem_size-1)
+    self.batch_time = torch.FloatTensor(self.batch_size, self.lt_mem_size+1)
+    self.batch_time2 = torch.FloatTensor(self.batch_size, self.lt_mem_size+1)
+    self.batch_recall = torch.ByteTensor(self.batch_size, self.lt_mem_size)
+    self.batch_recall2 = torch.ByteTensor(self.batch_size, self.lt_mem_size)
 
 end
 

@@ -19,6 +19,7 @@ require 'algorithm.TransitionTable'
 require 'algorithm.Nql'
 require 'algorithm.SharedNql'
 require 'algorithm.SeparateNql'
+require 'algorithm.HybridNql'
 
 local dbg = require('fb.debugger')
 bp = dbg.enter

@@ -18,7 +18,7 @@ cmd:text('Options:')
 cmd:option('-framework', 'environment.mcwrap', 'name of training framework')
 cmd:option('-env', '', 'task name for training')
 cmd:option('-test_env', '', 'task names for testing (comma-separated)')
-cmd:option('-test_hist_len', 30, 'history length for testing')
+-- cmd:option('-test_hist_len', 30, 'history length for testing')
 cmd:option('-env_params', '', 'string of environment parameters')
 cmd:option('-actrep', 1, 'how many times to repeat action')
 cmd:option('-save_name', '', 'filename used for saving network and training history')
@@ -92,7 +92,7 @@ if #test_env > 0 then
         agent_param[k] = v
     end
     agent_param.actions = game_actions
-    agent_param.hist_len = opt.test_hist_len
+    -- agent_param.hist_len = opt.test_hist_len
     agent_param.minibatch_size = 1
     agent_param.target_q = nil
     agent_param.replay_memory = 10000

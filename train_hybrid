@@ -1,0 +1,45 @@
+#!/bin/bash
+
+if [ -z "$3" ]
+  then echo "Usage: [env] [model_name] [gpu]"; exit 0
+fi
+env=$1
+test_env="$1Test"
+name=$2
+gpu=$3
+
+if [ -z $lr ]
+  then lr=0.0005
+fi
+
+if [ -z $st_mem_size ]
+  then echo "st_mem_size is not defined."; exit 0
+fi
+if [ -z $lt_mem_size ]
+  then echo "lt_mem_size is not defined."; exit 0
+fi
+
+agent="HybridNql"
+
+network="$name"
+seed=1
+steps=15000000
+replay_memory=50000
+state_dim=3072 # 3*32*32
+batch_size=32
+
+mkdir -p save/${env}
+if [ -z $save_name ]
+then
+  save_name="${env}/${name}_${hist_len}"
+fi
+
+if [ -z $ipaddr ]
+  then ipaddr="0.0.0.0"
+fi
+
+agent_params="lr=$lr,st_mem_size=$st_mem_size,lt_mem_size=$lt_mem_size,replay_memory=$replay_memory,network="\"$network\"",state_dim=$state_dim,minibatch_size=$batch_size"
+args="-agent $agent -save_name $save_name -env $env -agent_params $agent_params -steps $steps -gpu $gpu -seed $seed -test_env $test_env -ipaddr $ipaddr"
+echo $args
+
+th train.lua $args

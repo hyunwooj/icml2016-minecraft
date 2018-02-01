@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ -z "$3" ]
+  then echo "Usage: [task] [network_file] [gpu]"; exit 0
+fi
+env=$1
+network=$2
+gpu=$3
+
+agent="HybridNql"
+
+state_dim=3072
+agent_params="st_mem_size=$st_mem_size,lt_mem_size=$lt_mem_size,state_dim=$state_dim"
+
+args="-env ${env} -network ${network} -gpu ${gpu} -agent ${agent} -agent_params $agent_params"
+echo $args
+PYTHONPATH=$PWD/util qlua test.lua $args ${4} ${5} ${6} ${7} ${8} ${9} ${10}
