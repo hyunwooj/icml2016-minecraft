@@ -102,16 +102,21 @@ for iter=1,opt.num_play do
         step = step + 1
 
         -- memory visualization
-        local mem_img = nil
+        local lt_img, st_img = nil
         if opt.top_down and (opt.video ~= '' or opt.display) then
-            local mem = py.eval(img_util.flip_left_right(agent.memory.mem))
-            mem = torch.cat(mem, 3):permute(2, 3, 1)
-            local size = {#agent.memory.mem * opt.img_size, opt.img_size}
-            mem_img = py.eval(img_util.resize_img(mem, unpack(size)))
+            local lt_mem = py.eval(img_util.flip_left_right(agent.memory.lt.mem))
+            lt_mem = torch.cat(lt_mem, 3):permute(2, 3, 1)
+            local size = {#agent.memory.lt.mem * opt.img_size, opt.img_size}
+            lt_img = py.eval(img_util.resize_img(lt_mem, unpack(size)))
+
+            local st_mem = py.eval(img_util.flip_left_right(agent.memory.st.mem))
+            st_mem = torch.cat(st_mem, 3):permute(2, 3, 1)
+            local size = {#agent.memory.st.mem * opt.img_size, opt.img_size}
+            st_img = py.eval(img_util.resize_img(st_mem, unpack(size)))
         end
 
         local state = {screen=screen, time=step}
-        local action_index, dbg, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
+        local action_index, dbg, lt_dbg, st_dbg = agent:perceive(reward, state, terminal, true, 0)
         dbg.time = step
         dbg.reward = reward
 
@@ -119,7 +124,8 @@ for iter=1,opt.num_play do
         if opt.top_down and (opt.video ~= '' or opt.display) then
             pos_y, pos_x, dir = game_env:getPos()
             -- py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
-            py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img, dbg, mem_dbg)
+            py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1),
+                                                     lt_img, dbg, lt_dbg, st_img, st_dbg)
 
             display_img = py.eval(py_ret[0]):permute(3, 1, 2)
         end
@@ -144,16 +150,21 @@ for iter=1,opt.num_play do
     end
 
     -- memory visualization
-    local mem_img = nil
+    local lt_img, st_img = nil
     if opt.top_down and (opt.video ~= '' or opt.display) then
-        local mem = py.eval(img_util.flip_left_right(agent.memory.mem))
-        mem = torch.cat(mem, 3):permute(2, 3, 1)
-        local size = {#agent.memory.mem * opt.img_size, opt.img_size}
-        mem_img = py.eval(img_util.resize_img(mem, unpack(size)))
+        local lt_mem = py.eval(img_util.flip_left_right(agent.memory.lt.mem))
+        lt_mem = torch.cat(lt_mem, 3):permute(2, 3, 1)
+        local size = {#agent.memory.lt.mem * opt.img_size, opt.img_size}
+        lt_img = py.eval(img_util.resize_img(lt_mem, unpack(size)))
+
+        local st_mem = py.eval(img_util.flip_left_right(agent.memory.st.mem))
+        st_mem = torch.cat(st_mem, 3):permute(2, 3, 1)
+        local size = {#agent.memory.st.mem * opt.img_size, opt.img_size}
+        st_img = py.eval(img_util.resize_img(st_mem, unpack(size)))
     end
 
     local state = {screen=screen, time=step}
-    local action_index, dbg, mem_dbg = agent:perceive(reward, state, terminal, true, 0)
+    local action_index, dbg, lt_dbg, st_dbg = agent:perceive(reward, state, terminal, true, 0)
     dbg.time = step
     dbg.reward = reward
 
@@ -161,7 +172,8 @@ for iter=1,opt.num_play do
     if opt.top_down and (opt.video ~= '' or opt.display) then
         pos_y, pos_x, dir = game_env:getPos()
         -- py_ret = td_viewer.update_frame(pos_x, pos_y, dir, screen:permute(2, 3, 1))
-        py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1), mem_img, dbg, mem_dbg)
+        py_ret = td_viewer.update_frame_with_mem(pos_x, pos_y, dir, screen:permute(2, 3, 1),
+                                                 lt_img, dbg, lt_dbg, st_img, st_dbg)
         display_img = py.eval(py_ret[0]):permute(3, 1, 2)
     end
     if opt.video ~= '' then
