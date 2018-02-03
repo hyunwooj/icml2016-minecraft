@@ -4,7 +4,12 @@ if [ -z "$3" ]
   then echo "Usage: [env] [model_name] [gpu]"; exit 0
 fi
 env=$1
-test_env="$1Test"
+if [[ $env = "Seq" || $env = "SeqIndicator" || $env = "Single" || $env = "SingleIndicator" ]]
+then
+  test_env="$1Test,$1Large"
+else
+  test_env="$1Test"
+fi
 name=$2
 gpu=$3
 
