@@ -87,7 +87,7 @@ public class Task {
 
         PlayerState.logPosChange(GoalLocationsAndSpawnpointsManager.getSpawn(topology_id, goalAndSpawnID));
         PlayerState.logFlying(false);
-        PlayerState.logPitchChange(0.0F);
+        PlayerState.logPitchChange(45.0F);
         PlayerState.logYawChange(yaw * 90.0F);
 
         PlayerState.syncPlayer();
