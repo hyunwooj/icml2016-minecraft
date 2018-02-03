@@ -21,12 +21,12 @@ public class CommunicationHandler {
 
     private static OutputStream dataSender;
     private static BufferedReader dataReceiver;
-    
+
     public static ServerSocket getServerSocket()
     {
     	ServerSocket s = null;
-    	int port = 30000;
-    	while (s == null && port <= 31000)
+      int port = 40000;
+      while (s == null && port <= 41000)
     	{
     		try
     		{
