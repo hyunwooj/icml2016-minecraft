@@ -44,7 +44,7 @@ function gameEnv:reset(_env, _params, _gpu, _port, _img_size, _ipaddr)
         local connected = false
         print("Searching for available Minecraft instance..")
         while not connected do
-            for i=30000,30100 do
+            for i=40000,41000 do
                 self.client = socket.connect(ipaddr, i)
                 if self.client then
                     port = i

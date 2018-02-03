@@ -48,7 +48,7 @@ class MemTopDownViewer(TopDownViewer):
 
     def _draw_beh_q_values(self, beh_q, pos, font, font_bold, font_size, draw):
         x, y = pos
-        labels = ['LR', 'LL', 'LU', 'LD', 'FD', 'BD']
+        labels = ['LR', 'LL', 'FD']
 
         assert(len(labels) == len(beh_q))
         max_beh = np.argmax(beh_q)
