@@ -110,36 +110,36 @@ function MQN:build_retrieval(args, key_blocks, val_blocks, cnn_features, conv_di
     local hid = nn.View(1, -1):setNumInputDims(1)(context)
     local key_blocks_t = nn.Narrow(2, T - memsize, memsize)(key_blocks)
     local val_blocks_t = nn.Narrow(2, T - memsize, memsize)(val_blocks)
-    local MM_key = nn.MM(false, true)
-    local key_out = MM_key({hid, key_blocks_t})
-    local key_out2dim = nn.View(-1):setNumInputDims(2)(key_out)
+    -- local MM_key = nn.MM(false, true)
+    -- local key_out = MM_key({hid, key_blocks_t})
+    -- local key_out2dim = nn.View(-1):setNumInputDims(2)(key_out)
 
     -- Original
     -- local P = nn.SparseMax()(key_out2dim)
     -- local probs3dim = nn.View(1, -1):setNumInputDims(1)(P)
 
     -- Multiplication
-    local atten = nn.SparseMax()(key_out2dim)
-    atten = nn.CMulTable()({atten, reten})
-    atten = nn.Normalize(1)(atten)
+    -- local atten = nn.SparseMax()(key_out2dim)
+    -- atten = nn.CMulTable()({atten, reten})
+    -- atten = nn.Normalize(1)(atten)
 
-    -- -- B x T-1 x edim
-    -- local expanded_hid = nn.ExpandAs()({key_blocks_t, hid})
-    -- -- B x T-1 x 1
-    -- local unsqueezed_reten = nn.View(-1, T-1, 1)(reten)
+    -- B x T-1 x edim
+    local expanded_hid = nn.ExpandAs()({key_blocks_t, hid})
+    -- B x T-1 x 1
+    local unsqueezed_reten = nn.View(-1, T-1, 1)(reten)
 
-    -- local concated = nn.JoinTable(3)({expanded_hid, key_blocks_t, unsqueezed_reten})
-    -- local atten_input = nn.View(-1, edim + edim + 1)(concated)
-    -- local atten_hidden = nn.ReLU()(nn.Linear(edim + edim + 1, edim)(atten_input))
-    -- local atten_out = nn.Linear(edim, 1)(atten_hidden)
-    -- local atten = nn.SparseMax()(nn.View(-1, T-1)(atten_out))
+    local concated = nn.JoinTable(3)({expanded_hid, key_blocks_t, unsqueezed_reten})
+    local atten_input = nn.View(-1, edim + edim + 1)(concated)
+    local atten_hidden = nn.ReLU()(nn.Linear(edim + edim + 1, edim)(atten_input))
+    local atten_out = nn.Linear(edim, 1)(atten_hidden)
+    local atten = nn.SparseMax()(nn.View(-1, T-1)(atten_out))
 
     local probs3dim = nn.View(1, -1):setNumInputDims(1)(atten)
 
     local MM_val = nn.MM(false, false)
     local o = MM_val({probs3dim, val_blocks_t})
     if args.gpu and args.gpu > 0 then
-        MM_key = MM_key:cuda()
+        -- MM_key = MM_key:cuda()
         MM_val = MM_val:cuda()
     end
     -- return context, o, P
